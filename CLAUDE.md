@@ -36,6 +36,10 @@ Before editing any file, explain your plan in a few lines and wait for my go ahe
 Explain new concepts in simple English, building from the basics. Define each term
 before using it.
 
+Always track the project in Git and commit meaningful progress as logical milestones.
+Do not leave work uncommitted when a major step is complete; create a focused commit
+with a clear message describing the milestone and the files changed.
+
 Before using any library API, check the installed version and its actual function
 signatures. Do not rely on memory for sae-lens, TransformerLens or Hugging Face APIs.
 
