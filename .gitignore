@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.ruff_cache/
+
+# uv
+.venv/
+.uv/
+uv-cache/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Model and framework caches
+.cache/
+model_cache/
+models/cache/
+huggingface/
+transformers/
+sae_lens/
+torch/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+
+# Generated local caches
+monitor/labels_cache.json

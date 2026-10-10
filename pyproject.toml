@@ -1,0 +1,21 @@
+[project]
+name = "feature-monitor"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "sae-lens>=6.54.0",
+    "torch>=2.14.1",
+    "transformer-lens>=3.9.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = ["I"]
