@@ -41,9 +41,7 @@ def extract_features(prompt: str, k: int = 20) -> list[FeatureHit]:
             return []
 
         count = min(k, active_ids.numel())
-        values, indices = torch.topk(
-            max_activations[active_ids], count, largest=True, sorted=True
-        )
+        values, indices = torch.topk(max_activations[active_ids], count, largest=True, sorted=True)
         feature_ids = active_ids[indices]
 
     return [

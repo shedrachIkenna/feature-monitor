@@ -43,3 +43,9 @@ This run found 2 medical-enriched and 4 coding-enriched features, 3 shared commo
 With the model loaded before timing, median extraction was 0.0426 seconds and the slowest prompt took 0.1740 seconds.
 The existing label cache held a generic release title; label parsing now prefers feature-specific explanations and refreshes that stale value.
 Still open: test layers 4 and 11 after confirming their residual-pre SAE IDs and hook availability.
+
+## 2026-10-11
+Audited Milestone 1 (repo skeleton): all six items and both done-when checks hold.
+Pinned Python with `.python-version` (3.12) and ran `ruff format .`; 8 files changed, layout only (mostly missing final newlines, one wrapped line).
+Surprise: `ruff check` passed while `ruff format --check` failed, because the linter and the formatter are separate checks.
+Still open: add `ruff format --check .` to the CI workflow once GitHub Actions is set up.
