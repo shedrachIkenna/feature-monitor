@@ -1,4 +1,5 @@
 import json
+from typing import Self
 from urllib import error as urllib_error
 
 from monitor import labels
@@ -8,7 +9,7 @@ class FakeResponse:
     def __init__(self, payload: dict[str, object]) -> None:
         self.payload = payload
 
-    def __enter__(self) -> "FakeResponse":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
@@ -36,6 +37,24 @@ def test_get_label_fetches_and_caches_label(monkeypatch, tmp_path) -> None:
     assert cached["7"] == "economic policy and inflation"
 
 
+def test_get_label_refreshes_generic_release_cache(monkeypatch, tmp_path) -> None:
+    cache_path = tmp_path / "labels.json"
+    cache_path.write_text(json.dumps({"7": labels.GENERIC_RELEASE_LABEL}))
+    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+    monkeypatch.setattr(
+        labels,
+        "_fetch_feature_payload",
+        lambda feature_id: {
+            "description": labels.GENERIC_RELEASE_LABEL,
+            "explanations": [{"description": "medical terms and inflammation"}],
+        },
+    )
+
+    assert labels.get_label(7) == "medical terms and inflammation"
+    cached = json.loads(cache_path.read_text())
+    assert cached["7"] == "medical terms and inflammation"
+
+
 def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
 
@@ -57,9 +76,16 @@ def test_main_prints_top_prompt_features_with_labels(monkeypatch, capsys) -> Non
     monkeypatch.setattr(
         labels,
         "extract_features",
-        lambda prompt, k=10: [labels.FeatureHit(feature_id=3, activation=0.9), labels.FeatureHit(feature_id=9, activation=0.7)],
+        lambda prompt, k=10: [
+            labels.FeatureHit(feature_id=3, activation=0.9),
+            labels.FeatureHit(feature_id=9, activation=0.7),
+        ],
     )
-    monkeypatch.setattr(labels, "get_label", lambda feature_id: "money and trade" if feature_id == 3 else "unlabelled")
+    monkeypatch.setattr(
+        labels,
+        "get_label",
+        lambda feature_id: "money and trade" if feature_id == 3 else "unlabelled",
+    )
 
     labels.main("What is the economy?")
 

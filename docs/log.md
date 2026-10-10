@@ -36,3 +36,10 @@ Added `monitor/labels.py` with a single-feature Neuronpedia lookup, local JSON c
 The live `GET /api/feature/gpt2-small/8-res-jb/{id}` call returned HTTP 200 and exposed nested `jsonDetails` entries whose `text` field holds the human-readable explanation.
 The script now prints a label for each top feature, and the tests keep the network mocked so they can run deterministically offline.
 Still open: confirm whether Neuronpedia’s explanation quality is consistent enough for production alerting and whether the cached file should be persisted in a dedicated app-data directory.
+
+## 2026-10-11
+Added 20 hand-written prompts and a runnable notebook comparing top-20 layer-8 SAE feature frequencies, overlap, labels, and per-prompt extraction times.
+This run found 2 medical-enriched and 4 coding-enriched features, 3 shared common features (Jaccard 0.214), and a weak separation verdict.
+With the model loaded before timing, median extraction was 0.0426 seconds and the slowest prompt took 0.1740 seconds.
+The existing label cache held a generic release title; label parsing now prefers feature-specific explanations and refreshes that stale value.
+Still open: test layers 4 and 11 after confirming their residual-pre SAE IDs and hook availability.

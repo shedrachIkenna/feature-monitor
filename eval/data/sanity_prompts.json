@@ -1,0 +1,26 @@
+{
+  "medical": [
+    "What are common signs of dehydration?",
+    "Can ibuprofen upset the stomach?",
+    "How is high blood pressure diagnosed?",
+    "What causes seasonal allergies?",
+    "When should a fever be checked by a doctor?",
+    "Can exercise lower blood sugar?",
+    "What is the purpose of a flu vaccine?",
+    "How can I reduce migraine triggers?",
+    "What does a vitamin D test measure?",
+    "Can sleep loss affect heart health?"
+  ],
+  "coding": [
+    "How do I reverse a list in Python?",
+    "Why does this JavaScript promise reject?",
+    "How can I sort a table in SQL?",
+    "What does a null pointer error mean?",
+    "How do I read a file in Rust?",
+    "Why is my CSS grid overflowing?",
+    "How can I add a key to a Python dictionary?",
+    "What is the difference between a class and an object?",
+    "How do I resolve a Git merge conflict?",
+    "Why is this regular expression not matching?"
+  ]
+}

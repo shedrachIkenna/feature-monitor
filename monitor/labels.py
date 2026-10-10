@@ -13,6 +13,9 @@ MODEL_ID = "gpt2-small"
 SOURCE_ID = "8-res-jb"
 CACHE_PATH = Path(__file__).resolve().with_name("labels_cache.json")
 REQUEST_TIMEOUT_SECONDS = 10
+GENERIC_RELEASE_LABEL = (
+    "Open Source Sparse Autoencoders for all Residual Stream Layers of GPT2-Small"
+)
 
 
 def _feature_url(feature_id: int | str) -> str:
@@ -52,6 +55,14 @@ def _write_cache(cache: dict[str, str]) -> None:
 def _extract_explanation_text(payload: object) -> str | None:
     """Pull the human-readable explanation text out of a Neuronpedia response."""
     if isinstance(payload, dict):
+        explanations = payload.get("explanations")
+        if isinstance(explanations, list):
+            for explanation in explanations:
+                if isinstance(explanation, dict):
+                    description = explanation.get("description")
+                    if isinstance(description, str) and description.strip():
+                        return description.strip()
+
         for key in ("explanation", "label", "text", "description"):
             value = payload.get(key)
             if isinstance(value, str) and value.strip():
@@ -100,7 +111,7 @@ def get_label(feature_id: int | str) -> str:
     """Return the readable label for a feature or 'unlabelled' on failure."""
     feature_key = str(feature_id)
     cache = _read_cache()
-    if feature_key in cache:
+    if feature_key in cache and cache[feature_key] != GENERIC_RELEASE_LABEL:
         return cache[feature_key]
 
     for attempt in range(2):
@@ -108,7 +119,7 @@ def get_label(feature_id: int | str) -> str:
             payload = _fetch_feature_payload(feature_key)
             label = _extract_explanation_text(payload)
             text = (label or "").strip()
-            if not text:
+            if not text or text == GENERIC_RELEASE_LABEL:
                 text = "unlabelled"
             cache[feature_key] = text
             _write_cache(cache)
