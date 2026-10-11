@@ -3,6 +3,7 @@ from typing import Self
 from urllib import error as urllib_error
 
 from monitor import labels
+from monitor.extract import FeatureHit
 
 
 class FakeResponse:
@@ -108,8 +109,8 @@ def test_main_prints_top_prompt_features_with_labels(monkeypatch, capsys) -> Non
         labels,
         "extract_features",
         lambda prompt, k=10: [
-            labels.FeatureHit(feature_id=3, activation=0.9),
-            labels.FeatureHit(feature_id=9, activation=0.7),
+            FeatureHit(feature_id=3, activation=0.9),
+            FeatureHit(feature_id=9, activation=0.7),
         ],
     )
     monkeypatch.setattr(

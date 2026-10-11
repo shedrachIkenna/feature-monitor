@@ -14,7 +14,6 @@ def test_extract_features_returns_top_valid_deterministic_hits() -> None:
     five_hits = extract_features(prompt, k=5)
 
     assert len(hits) == 20
-    assert len(hits) <= 20
     assert len(five_hits) <= 5
     assert all(0 <= hit.feature_id < sae.cfg.d_sae for hit in hits)
     assert all(hit.activation > 0 for hit in hits)

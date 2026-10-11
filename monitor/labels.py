@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-from monitor.extract import FeatureHit, extract_features
+from monitor.extract import extract_features
 
 MODEL_ID = "gpt2-small"
 SOURCE_ID = "8-res-jb"
@@ -95,14 +95,9 @@ def get_label(feature_id: int | str) -> str:
     return "unlabelled"
 
 
-def _top_prompt_features(prompt: str, k: int = 10) -> list[FeatureHit]:
-    """Return the top prompt features, capped to the requested count."""
-    return extract_features(prompt, k=k)
-
-
 def main(prompt: str, k: int = 10) -> None:
     """Print the top features for a prompt together with their labels."""
-    for hit in _top_prompt_features(prompt, k=k):
+    for hit in extract_features(prompt, k=k):
         print(f"{hit.feature_id}: {get_label(hit.feature_id)}")
 
 

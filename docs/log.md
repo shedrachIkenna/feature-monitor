@@ -85,3 +85,8 @@ Still open: whether a drift test over the full feature distribution, not just co
 Addressed review issue 5: the two tests that load GPT-2 and the SAE carry a registered `requires_model` marker, and `make test-fast` runs the other 10 without them.
 `make test` still runs all 12; `make test-fast` took 2.6 s, not the under-a-second I estimated, because importing `monitor.labels` pulls in torch and TransformerLens.
 Still open: GitHub Actions should cache `~/.cache/huggingface` so the model tests can run in CI; issues 6-10.
+
+## 2026-10-11
+Addressed review issue 6: removed the `_top_prompt_features` pass-through so `main` calls `extract_features` directly, and dropped a redundant `len(hits) <= 20` assertion.
+The label test now imports `FeatureHit` from `monitor.extract`, where it is defined. No behaviour change; all 12 tests pass and the CLI still prints labels.
+Still open: issues 7-10 from the study report.
