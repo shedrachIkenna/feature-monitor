@@ -21,3 +21,6 @@ line-length = 100
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.pytest.ini_options]
+markers = ["requires_model: loads GPT-2 and the SAE, downloading them on first run"]

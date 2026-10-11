@@ -1,7 +1,10 @@
+import pytest
+
 from monitor.extract import extract_features
 from monitor.model import load_model_and_sae
 
 
+@pytest.mark.requires_model
 def test_extract_features_returns_top_valid_deterministic_hits() -> None:
     prompt = "How do I reset my password?"
     model, sae = load_model_and_sae()

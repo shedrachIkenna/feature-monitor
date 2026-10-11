@@ -1,6 +1,9 @@
+import pytest
+
 from monitor.model import load_model_and_sae
 
 
+@pytest.mark.requires_model
 def test_sae_input_size_matches_model_width() -> None:
     model, sae = load_model_and_sae()
 
