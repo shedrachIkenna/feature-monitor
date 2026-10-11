@@ -108,3 +108,8 @@ Addressed review issue 8: removed the repository-local git identity ("Feature Mo
 Checked: author name and email updated, original dates kept, final file contents identical to the pre-rewrite backup. Nothing had been pushed, so no one else's copy is affected.
 Every commit hash changed; the two old hashes in `docs/study-report.md` were updated to the new ones.
 Still open: issues 9-10 from the study report.
+
+## 2026-10-11
+Addressed review issue 9: deleted `docs/setup-report.pdf`, which described the 8 October skeleton ("No ML libraries were installed") and was now misleading; the study report supersedes it.
+It stays recoverable from history with `git show c5b023b:docs/setup-report.pdf`.
+Still open: issue 10 (milestone list) from the study report.

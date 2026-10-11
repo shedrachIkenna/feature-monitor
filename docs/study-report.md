@@ -198,7 +198,6 @@ Feature_monitor/
 ├── docs/
 │   ├── design.md             One-page design (rewritten today)
 │   ├── log.md                Build log
-│   ├── setup-report.pdf      Report on the original skeleton (Oct 8; now out of date)
 │   └── study-report.md       This file
 ├── backend/  traffic/  frontend/   Empty placeholders (not started)
 └── tests/                    Mirrors the folders above
