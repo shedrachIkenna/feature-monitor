@@ -209,40 +209,46 @@ file keeps it in the history.
 
 ### 3.2 `monitor/model.py`: loading the model and SAE
 ```python
-MODEL_NAME = "gpt2-small"
+MODEL_NAME = "gpt2"  # Hugging Face name for GPT-2 Small
 SAE_RELEASE = "gpt2-small-res-jb"  # which family of SAEs
 SAE_ID = "blocks.8.hook_resid_pre"  # which one: layer 8, residual-pre
 
 
 @lru_cache(maxsize=1)
-def load_model_and_sae() -> tuple[HookedTransformer, SAE]:
+def load_model_and_sae() -> tuple[TransformerBridge, SAE]:
     device = "cpu"
-    model = HookedTransformer.from_pretrained(MODEL_NAME, device=device)
+    model = TransformerBridge.boot_transformers(MODEL_NAME, device=device)
+    model.enable_compatibility_mode()
     sae = SAE.from_pretrained(SAE_RELEASE, SAE_ID, device=device)
     return model, sae
 ```
+- **`TransformerBridge`** wraps the standard Hugging Face GPT-2 and adds TransformerLens
+  hooks. It replaced the deprecated `HookedTransformer.from_pretrained` on 2026-10-11.
+  **Deprecated** means "still works, but will be removed in a future version".
+  `enable_compatibility_mode()` applies the same weight processing as the old loader,
+  including `center_writing_weights=True`, which the SAE was trained with. On all 40 sanity
+  prompts the two loaders gave bit-for-bit identical layer-8 activations, and
+  `test_bridge_matches_deprecated_loader` keeps checking this.
 - **`@lru_cache(maxsize=1)`** is a **decorator**: a line starting with `@` that wraps a
   function with extra behaviour. This one remembers the result. The first call loads the
   model, which takes seconds; every later call returns the same objects instantly. Without
   it, every request would reload GPT-2.
 - **`device = "cpu"`**: a **device** is the hardware that does the maths. The Mac has a GPU
-  reachable through **MPS** (Apple's GPU interface), which is faster. The installed
-  TransformerLens warns that MPS can *silently produce wrong numbers* with this PyTorch
-  version, so the code uses the CPU. CLAUDE.md was updated to match. Docker on a Mac has
-  no GPU anyway.
-- `-> tuple[HookedTransformer, SAE]` is a **type hint**: it documents what the function
+  reachable through **MPS** (Apple's GPU interface). The installed TransformerLens treats
+  no PyTorch version as MPS-safe yet, so CPU is the cautious default; see section 3.5 for
+  our own MPS check. Docker on a Mac has no GPU anyway.
+- `-> tuple[TransformerBridge, SAE]` is a **type hint**: it documents what the function
   returns. CLAUDE.md requires these on public functions.
 - `main()` prints the sizes, so you can run `uv run python -m monitor.model` as a quick
-  check. Output: `d_model: 768`, `d_sae: 24576`.
+  check. Output: `Model: gpt2`, `Device: cpu`, `d_model: 768`, `d_sae: 24576`.
 
-**Warnings you will see when this runs:**
-1. *"HookedTransformer.from_pretrained is deprecated … use TransformerBridge"*.
-   **Deprecated** means "still works, but will be removed in a future version". It will
-   need migrating before TransformerLens 4.0. Not urgent.
+**Warnings you will see when this runs.** Both come from inside sae-lens, not our code, and
+are documented in `docs/upstream-warnings.pdf`:
+1. *"The 'utils' module has been deprecated …"*. sae-lens imports from an old TransformerLens
+   location. A fix is waiting upstream (SAELens PR #739).
 2. *"This SAE has non-empty model_from_pretrained_kwargs …"*. The SAE was trained on GPT-2
-   loaded with the setting `center_writing_weights=True`. I checked whether our loading
-   matches by measuring FVU both ways on the same prompt. Both gave **0.1845**, so our
-   default loading already matches. This warning is harmless for us.
+   loaded with `center_writing_weights=True`. We checked that our loading matches: FVU was
+   **0.1845** both ways on the same prompt. The warning is harmless for us.
 
 ### 3.3 `monitor/extract.py`: from prompt to top 20 features
 ```python
@@ -268,6 +274,24 @@ cannot be changed after creation, which makes it safe to compare and share.
 | `torch.nonzero(max_activations > 0)` | Keeps only features that fired at all | Avoids returning zeros as "top" features |
 | `torch.topk(..., count)` | Picks the `k` largest, sorted high to low | The "top 20" |
 | Returns a list of `FeatureHit` | | Plain Python objects, easy to store |
+
+**Tensor shapes.** A **tensor** is a grid of numbers; its **shape** lists the size of
+each direction, so `(1, 8, 768)` means 1 × 8 × 768 numbers. Measured on
+"How do I reset my password?":
+
+| Step | Tensor | Shape | What each position means |
+|---|---|---|---|
+| Text → tokens | `tokens` | (1, 8) | 1 prompt (the **batch** size: prompts processed at once) × 8 tokens (BOS + 7 real) |
+| Read at `blocks.8.hook_resid_pre` | `activations` | (1, 8, 768) | per token, the 768 residual-stream numbers (`d_model`) |
+| `sae.encode` | `features` | (1, 8, 24576) | per token, 24,576 feature strengths (`d_sae`), almost all zero |
+| SAE encoder weights | `W_enc` | (768, 24576) | the table that turns 768 numbers into 24,576 |
+| SAE decoder weights | `W_dec` | (24576, 768) | the table that turns them back |
+| `[0, 1:, :]` | | (7, 24576) | prompt 0, BOS dropped, all features |
+| `.amax(dim=0)` | `max_activations` | (24576,) | each feature's maximum over the 7 tokens |
+| `topk` | | (20,) | the 20 strongest features |
+
+The SAE's input size (the 768 in `W_enc`) must equal the model's `d_model` (768). If they
+differed, the SAE would have been built for a different model. `test_model.py` checks this.
 
 **Why drop BOS?** It is a fixed token that appears in every prompt, and its activations
 are huge. On the password prompt, the strongest feature on BOS was **502** versus **51.6**
@@ -310,6 +334,21 @@ The `urllib` used here is part of Python itself, so no extra package is needed.
 
 Running `uv run python -m monitor.labels "your prompt"` prints the top 10 features with
 their labels.
+
+### 3.5 `eval/mps_check.py`: is MPS safe for our use?
+TransformerLens treats no PyTorch version as MPS-safe, but the only *specific* bug it lists
+is in PyTorch 2.8; we have 2.14.1. So we tested our own path directly.
+`uv run python -m eval.mps_check` loads the model and SAE on CPU and on MPS and runs all 40
+sanity prompts on both. The pass rule was fixed before the first run: identical top-20
+feature sets on every prompt, and a largest activation difference of at most 0.1% of the
+largest activation.
+
+Result on 2026-10-11 (torch 2.14.1): **PASS**. Top-20 sets matched on 40/40 prompts. The
+largest difference was 0.00073 on activations up to 3,010 (relative 2.4 × 10<sup>-7</sup>).
+Speed over 120 timed calls after warm-up: median **17.2 ms on CPU** and **10.8 ms on MPS**.
+
+The check covers one forward pass to layer 8 plus the SAE encoder. It does not cover text
+generation or steering, which later milestones add.
 
 ---
 

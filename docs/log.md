@@ -125,3 +125,9 @@ Verified Milestone 0.3 (README and project board): README had the required secti
 Added the missing 2026-10-08 heading to the first two log entries without changing their wording.
 Surprise: the earlier M0-M8 issue list was inferred, not taken from the design. The milestone sequence now comes from the user: Milestone 0 is Scope and setup (0.1 repository and environment, 0.2 design document, 0.3 README and project board).
 Still open: which milestone number covers the model loading, extraction, labels and sanity-check work already done.
+
+## 2026-10-11
+Verified Milestone 1.1 (load the model and SAE): all items hold, with two deliberate changes from the original wording (TransformerBridge instead of HookedTransformer, and CPU instead of MPS-if-available). Added the missing tensor-shapes explanation to the study report and brought its section 3.2 up to date.
+Added `eval/mps_check.py`. Pass rule fixed before running: identical top-20 sets on all 40 sanity prompts and a relative activation difference of at most 0.1%. Result: PASS (40/40, relative difference 2.4e-7).
+Surprise: MPS was faster but not dramatically so, median 10.8 ms versus 17.2 ms on CPU over 120 calls.
+Still open: whether to switch the default device to MPS; the check covers layer-8 extraction only, not generation or steering.
