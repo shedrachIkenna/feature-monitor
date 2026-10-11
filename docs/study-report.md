@@ -1,13 +1,25 @@
 # Feature Monitor: Study Report
 
-Prepared 2026-10-11. Covers everything in the repository up to and including commit
-`92766a2`, plus the rewritten `docs/design.md`.
+Prepared 2026-10-11, last refreshed the same day after Milestone 1.1. Covers Milestone 0
+(scope and setup), Milestone 1.1 (load the model and SAE), the review fixes, and the
+supporting experiments.
 
 Every number in this report was either printed by code in this repository or measured
 again while writing it. Where something has not been tested, the report says so.
 
+**Where the project stands.**
+
+| Milestone | Item | Status |
+|---|---|---|
+| 0 Scope and setup | 0.1 Repository and environment | Done |
+| | 0.2 Design document | Done |
+| | 0.3 README and project board | Done |
+| 1 Feature extraction | 1.1 Load the model and SAE | Done |
+| | Further items | Not yet given. Extraction, labels and the sanity check already exist in the code (Parts 3 and 5) |
+
 **How to read this.** Part 1 builds up the ideas from scratch. Part 2 explains the tools.
-Parts 3 to 6 walk through every file. Part 7 lists problems found during the review.
+Parts 3 to 6 walk through every file. Part 7 lists the problems found in the review and
+how each was fixed.
 Read in order the first time; later, use it as a reference.
 
 ---
@@ -129,12 +141,13 @@ experiments will.
 | **pyproject.toml** | The project's settings file: name, Python version, dependencies, tool settings | See 2.1 |
 | **uv.lock** | The **lock file**: the exact version of every package, including indirect ones | Lets anyone recreate the identical environment with `uv sync` |
 | **PyTorch (`torch`)** | The maths library neural networks run on | Runs GPT-2 and the SAE |
-| **TransformerLens** | A library that loads models like GPT-2 with hooks everywhere | `HookedTransformer`, `run_with_cache` |
+| **TransformerLens** | A library that loads models like GPT-2 with hooks everywhere | `TransformerBridge`, `run_with_cache` |
 | **sae-lens** | A library that downloads and runs pre-trained SAEs | `SAE.from_pretrained`, `sae.encode` |
 | **pytest** | Runs tests: small programs that check the code does what it should | `uv run pytest` |
+| **ipykernel, nbconvert** | Run notebook code; execute a notebook from the terminal | `uv run jupyter nbconvert --execute` |
 | **ruff** | Two tools in one: a **linter** (finds code problems) and a **formatter** (fixes layout) | `ruff check`, `ruff format` |
-| **make / Makefile** | Short names for longer commands | `make test`, `make lint`, `make format` |
-| **git** | Saves snapshots (**commits**) of the project's history | 4 commits so far |
+| **make / Makefile** | Short names for longer commands | `make test`, `make test-fast`, `make lint`, `make format` |
+| **git** | Saves snapshots (**commits**) of the project's history | One focused commit per step, credited to Shedrach Nwali; no remote yet |
 
 Planned but **not installed yet**: FastAPI (web API), SQLite (database), APScheduler
 (scheduled jobs), a sentence-embedding library, Docker, GitHub Actions.
@@ -147,14 +160,20 @@ requires-python = ">=3.12"          # Python 3.12 or newer (.python-version pins
 dependencies = ["sae-lens>=6.54.0", "torch>=2.14.1", "transformer-lens>=3.9.0"]
 
 [dependency-groups]
-dev = ["pytest>=9.1.1", "ruff>=0.16.10"]  # needed to develop, not to run
+dev = ["ipykernel>=7.4.0", "nbconvert>=7.17.1", "pytest>=9.1.1", "ruff>=0.16.10"]
+# dev = needed to develop, not to run
 
 [tool.ruff]
 line-length = 100                    # lines longer than 100 characters are flagged
 
 [tool.ruff.lint]
 extend-select = ["I"]                # also check import ordering ("I" = isort rules)
+
+[tool.pytest.ini_options]
+markers = ["requires_model: loads GPT-2 and the SAE, downloading them on first run"]
 ```
+A **marker** is a tag on a test. `make test-fast` uses this one to skip the slow tests
+(Part 4).
 Installed versions right now: sae-lens 6.54.0, transformer-lens 3.9.0, torch 2.14.1.
 
 ### 2.2 Linter versus formatter
@@ -193,12 +212,17 @@ Feature_monitor/
 │   ├── labels.py             Feature ID → human-readable label (Neuronpedia)
 │   └── labels_cache.json     Saved labels (not committed)
 ├── eval/
-│   ├── 01_sanity_check.ipynb The medical-vs-coding experiment
-│   └── data/sanity_prompts.json  Its 20 prompts
+│   ├── sanity.py             The topic-separation rule (counts, enrichment, verdict)
+│   ├── mps_check.py          MPS-versus-CPU check (section 3.5)
+│   ├── 01_sanity_check.ipynb The medical-vs-coding experiment, two prompt sets
+│   └── data/
+│       ├── sanity_prompts.json          20 hand-written prompts
+│       └── sanity_prompts_matched.json  20 phrasing-matched prompts
 ├── docs/
-│   ├── design.md             One-page design (rewritten today)
+│   ├── design.md             One-page design
 │   ├── log.md                Build log
-│   └── study-report.md       This file
+│   ├── study-report.md       This file
+│   └── upstream-warnings.pdf The two sae-lens warnings, for an upstream contribution
 ├── backend/  traffic/  frontend/   Empty placeholders (not started)
 └── tests/                    Mirrors the folders above
 ```
@@ -303,8 +327,9 @@ spots in *every* request and drown out the signal from what the user actually wr
 fired on. A feature that fires once and one that fires on every word look the same. This
 is a known, deliberate simplification (it is listed as open in the log).
 
-**Speed.** Once loaded, extraction takes about **0.043 s** per prompt on CPU. The first
-prompt after loading is slower (0.17 to 0.18 s) because of one-time warm-up work.
+**Speed.** Once the model is loaded, extraction takes a median of **17.2 ms** per prompt on
+CPU (120 calls, measured with `TransformerBridge`). The old `HookedTransformer` loader took
+about 43 ms. The first call after loading is slower because of one-time warm-up work.
 
 ### 3.4 `monitor/labels.py`: feature ID to label
 Goal: `get_label(18171)` → `"medical terms related to inflammation or clinical conditions"`.
@@ -312,28 +337,35 @@ Goal: `get_label(18171)` → `"medical terms related to inflammation or clinical
 How `get_label` works:
 1. **Check the cache.** A **cache** is a saved copy of earlier answers, so we don't ask
    the website again. Here it is `monitor/labels_cache.json`, a dictionary from feature ID
-   to label. If the ID is there (and isn't the bad generic label, see step 4), return it.
+   to label. If the ID is there, return it.
 2. **Ask Neuronpedia.** Call the web **API** (an address that returns data for programs,
    not people):
    `https://www.neuronpedia.org/api/feature/gpt2-small/8-res-jb/{feature_id}`.
    The response is **JSON**, a standard text format for nested data.
-3. **Find the label inside the response** with `_extract_explanation_text`. The response
-   is deeply nested, so this function searches it **recursively** (it calls itself on
-   each nested piece). It looks first in `explanations[].description`, then in fields
-   named `explanation`, `label`, `text` or `description`, then inside `jsonDetails`, and
-   finally in every other value. It even handles JSON stored inside a text string.
-4. **Reject the generic label.** An early version picked up the SAE release's title
-   (*"Open Source Sparse Autoencoders for all Residual Stream Layers of GPT2-Small"*)
-   instead of the feature's own description. That bad value had been cached, so the code
-   now rejects it explicitly and fetches again.
-5. **Retry once.** If the request fails (timeout, network error, rate limit), it tries a
-   second time. If that also fails, it returns `"unlabelled"`.
-6. **Save** the result to the cache file.
+3. **Handle failures by kind.** A **transient** error is temporary and might succeed a
+   moment later: a timeout, a dropped connection, HTTP 429 ("too many requests") or a 5xx
+   code (the server broke). These are retried once. A **permanent** error won't change on
+   retry: other HTTP errors such as 404 ("no such feature"), or a response that isn't
+   valid JSON. These give up straight away. Either way the result is `"unlabelled"`, and
+   **nothing is saved**, so a brief outage doesn't become a permanently missing label.
+4. **Read the label** with `_explanation_from_payload`. It returns the first non-empty
+   `explanations[].description` and reads nothing else. A real response for feature
+   18171 has two explanations; the first is the label above.
+5. **Save** the label to the cache. A successful response with no explanation saves
+   `"unlabelled"`, because that is a real answer.
+
+**What we learned building this.** An earlier version searched the whole response for any
+text field. It picked up `sourceSet.description`, the SAE release's title (*"Open Source
+Sparse Autoencoders for all Residual Stream Layers of GPT2-Small"*), and 8 of the 14
+cached labels were that title. It could also have picked up `jsonDetails[].text`. An
+earlier log entry called that the explanation, but it is actually example text used to
+score explanations. The strict parser fixed both problems, and the 8 bad entries were
+re-fetched.
 
 The `urllib` used here is part of Python itself, so no extra package is needed.
 
 Running `uv run python -m monitor.labels "your prompt"` prints the top 10 features with
-their labels.
+their labels, for example `3602: references to passwords and login credentials`.
 
 ### 3.5 `eval/mps_check.py`: is MPS safe for our use?
 TransformerLens treats no PyTorch version as MPS-safe, but the only *specific* bug it lists
@@ -354,18 +386,27 @@ generation or steering, which later milestones add.
 
 ## Part 4. The tests
 
-Run with `uv run pytest`. There are **7 tests and all pass.** Four warnings appear; they
-are the deprecation and SAE messages from section 3.2.
+Run all of them with `make test` (`uv run pytest`): **13 tests, all passing.** Two warnings
+appear, both from inside sae-lens (section 3.2). Three tests are tagged `requires_model`
+because they load GPT-2 and the SAE, which downloads them on the first run. `make
+test-fast` skips those three and runs the other 10 in about 2.6 s, without any network
+access.
 
-| Test | What it checks | Needs internet / model? |
+| Test | What it checks | Loads the model? |
 |---|---|---|
 | `test_smoke.py::test_smoke` | `assert True`: proves pytest itself runs | No |
-| `test_model.py::test_sae_input_size_matches_model_width` | Model is on CPU; the SAE's input size (768) equals the model's width (768). If they differed, the SAE was built for a different model | Yes, the first time (downloads) |
-| `test_extract.py::…returns_top_valid_deterministic_hits` | Password prompt gives exactly 20 hits; `k=5` gives ≤5; IDs are in range; all activations > 0; sorted high to low; two runs give identical results (**deterministic**) | Yes, the first time |
-| `test_labels.py::…fetches_and_caches_label` | Label is fetched once, then served from the cache | No (mocked) |
-| `test_labels.py::…refreshes_generic_release_cache` | A cached generic label gets replaced by the real one | No (mocked) |
-| `test_labels.py::…retries_once_then_returns_unlabelled` | Timeout, then rate-limit error (HTTP 429), gives `"unlabelled"` after exactly 2 tries | No (mocked) |
+| `test_model.py::test_sae_input_size_matches_model_width` | Model is on CPU; the SAE's input size (768) equals the model's width (768) | Yes |
+| `test_model.py::test_bridge_matches_deprecated_loader` | `TransformerBridge` gives the same layer-8 activations as the old `HookedTransformer` on two prompts. Delete it once TransformerLens 4.0 removes the old loader | Yes |
+| `test_extract.py::…returns_top_valid_deterministic_hits` | Password prompt gives exactly 20 hits; `k=5` gives ≤5; IDs are in range; all activations > 0; sorted high to low; two runs give identical results (**deterministic**) | Yes |
+| `test_labels.py::…fetches_and_caches_label` | A real-shaped response gives its first explanation, fetched once and then served from the cache | No (mocked) |
+| `test_labels.py::…ignores_text_outside_explanations` | A response with only the release title and a `jsonDetails` snippet gives `"unlabelled"` | No (mocked) |
+| `test_labels.py::…retries_once_then_returns_unlabelled` | Timeout, then HTTP 429: exactly 2 tries, nothing cached, and the next call tries again | No (mocked) |
+| `test_labels.py::…does_not_retry_permanent_http_error` | HTTP 404: exactly 1 try | No (mocked) |
+| `test_labels.py::…retries_server_error_once` | HTTP 503: exactly 2 tries | No (mocked) |
 | `test_labels.py::…prints_top_prompt_features_with_labels` | The command-line output contains the IDs and labels | No (mocked) |
+| `test_sanity.py::…counts_each_prompt_once` | A feature repeated within one prompt counts once | No |
+| `test_sanity.py::…finds_enriched_features_and_jaccard` | Common, enriched and Jaccard values on a small hand-made example | No |
+| `test_sanity.py::…clear_and_none_verdicts` | The "clearly" and "not at all" verdicts | No |
 
 **Mocking.** The label tests never touch the real internet. They use pytest's
 **`monkeypatch`**, which temporarily swaps a real function for a fake one during a test.
@@ -374,11 +415,18 @@ Neuronpedia. This makes the tests fast, and they give the same result every time
 like this is called a **mock**. `tmp_path` gives each test a fresh temporary folder, so
 tests never touch the real cache file.
 
+**Checking that a test can fail.** For each bug fix, the new test was first run against
+the *old* code to confirm it failed there. A test that passes on broken code proves
+nothing.
+
 ---
 
 ## Part 5. The sanity-check experiment (`eval/01_sanity_check.ipynb`)
 
 A **notebook** is a document mixing code, its output and notes, run one **cell** at a time.
+The counting rule lives in `eval/sanity.py`, so it can be tested; the notebook just calls
+it. Re-run everything with
+`uv run jupyter nbconvert --to notebook --execute --inplace eval/01_sanity_check.ipynb`.
 
 ### 5.1 Question
 Before building a drift monitor on SAE features, check the most basic thing: *do medical
@@ -386,8 +434,11 @@ prompts and coding prompts even produce different features at layer 8?* If not, 
 idea fails early.
 
 ### 5.2 Setup
-- 10 medical prompts ("Can ibuprofen upset the stomach?") and 10 coding prompts ("How do I
-  reverse a list in Python?"), hand-written, in `eval/data/sanity_prompts.json`.
+- **Original set:** 10 medical prompts ("Can ibuprofen upset the stomach?") and 10 coding
+  prompts ("How do I reverse a list in Python?"), hand-written.
+- **Matched set:** 10 sentence templates, each filled once with a medical and once with a
+  coding subject ("What causes a migraine?" / "What causes a memory leak?"). The only
+  difference within each pair is the topic.
 - Top 20 features per prompt.
 - A feature is **common** in a group if it is in the top 20 of at least 5 of that group's
   10 prompts, and **rare** if in at most 1.
@@ -397,10 +448,21 @@ idea fails early.
 - The rule was written **before** looking at results: "clear separation" needs at least 3
   enriched features in each group and Jaccard ≤ 0.25; "weak" means some enriched features
   but not clear.
+- The prediction for the matched set was also written down before it was run: if
+  phrasing drove the original separation, the remaining enriched features should be
+  topical.
 
 ### 5.3 Results (from the notebook's saved output)
-- Common features: 7 medical, 10 coding, 3 shared → **Jaccard = 3/14 = 0.214**.
-- Enriched: **2 medical, 4 coding**. The rule needs 3 in each group, so the verdict is **weak**.
+
+| | Original prompts | Matched prompts |
+|---|---|---|
+| Common features (medical / coding / shared) | 7 / 10 / 3 | 5 / 5 / 3 |
+| Jaccard overlap | 0.214 | 0.429 |
+| Medical-enriched | 2 | 1 |
+| Coding-enriched | 4 | 0 |
+| Verdict | weakly | weakly |
+
+Enriched features in the **original** set:
 
 | Enriched for | Feature | Medical | Coding | Neuronpedia label |
 |---|---:|---:|---:|---|
@@ -411,32 +473,31 @@ idea fails early.
 | Coding | 21629 | 1/10 | 5/10 | phrases related to instructing or providing guidance |
 | Coding | 21981 | 1/10 | 5/10 | questions starting with "How do you"/"How do we" … |
 
-Timing: median **0.0429 s** per prompt, slowest 0.1838 s (the first prompt). The log
-records 0.0426 s and 0.1740 s from an earlier run of the same notebook. Small
-run-to-run differences in timing are normal.
+In the **matched** set, only one feature remains: 18171 (medical terms), in 7/10 medical
+prompts and 0/10 coding prompts.
 
 ### 5.4 What this actually tells us (read carefully)
-- **Only one of the six enriched features is about the topic** (18171, medical terms).
-  The other five describe **how the question is phrased**: question marks, "How can I",
-  the word "a", "How do you". Our coding prompts happen to use "How do I / How can I"
-  more, and the features picked that up.
-- So "weak separation" may even overstate *topic* separation. Layer 8 features seem at
-  least as sensitive to **wording** as to **subject**.
-- This cuts both ways for the project. It is a warning for the topic-change scenario
-  (some "detections" might really be phrasing artefacts). It is also a hint that SAE
-  features could catch the **style and framing scenarios** that embeddings, which are
-  designed to ignore wording, may miss. Untested; that is what the real experiment is for.
-- **Limits:** 20 prompts, one layer, hand-written prompts, labels that may be wrong. This
-  is a quick check, not evidence of anything general.
-- **Suggested next check** (already in the log): repeat at layers 4 and 11, and with
-  prompts whose phrasing is matched across topics, so that phrasing and topic are not
-  mixed together.
+- **Most of the original separation came from phrasing, not topic.** Five of the six
+  original enriched features describe how the question is phrased. Once phrasing was held
+  constant, all five disappeared, and only the topical feature 18171 remained.
+- **The topic signal in common top-20 features at layer 8 is thin:** one medical feature,
+  and no coding feature at all.
+- **That does not show topic drift is undetectable.** This rule only counts features
+  shared by 5 or more of 10 prompts. Coding subjects such as "recursion" and "deadlock" may
+  each trigger their own specific features, which a drift test over the *whole* feature
+  distribution could still pick up. Keep this in mind when choosing the drift test.
+- **For the style and framing scenarios,** layer 8's sensitivity to phrasing suggests SAE
+  features may react to wording changes that embeddings are designed to ignore.
+  Untested; that is what the real experiment is for.
+- **Limits:** 20 prompts per set, one layer, hand-written prompts, labels that may be
+  wrong. This is a quick check, not evidence of anything general.
+- **Still open:** repeat at layers 4 and 11.
 
 ---
 
 ## Part 6. The design (`docs/design.md`) and why each choice was made
 
-The design was rewritten today after a 6-question interview. Summary of the decisions:
+The design was rewritten after a 6-question interview. Summary of the decisions:
 
 ### 6.1 Users
 Today the user is **us, the researchers**. The system is ultimately meant for an **on-call
@@ -487,68 +548,54 @@ embedding model.
 
 ---
 
-## Part 7. Issues found during the review
+## Part 7. Issues found in the review, and how each was fixed
 
-Ranked by how much they matter. None breaks the current tests.
+All 10 are resolved.
 
-1. **Network failures are cached forever as "unlabelled"** (`monitor/labels.py:130`).
-   If Neuronpedia is briefly down, `"unlabelled"` is saved to the cache and never retried.
-   A brief outage becomes a permanent missing label. Fix: don't cache failures.
-2. **The retry fires on every error, not only on timeouts and rate limits**
-   (`labels.py:127`). The log describes "one retry on timeout/429-style failures", but the
-   code retries on *any* error, including a 404 for a feature that doesn't exist. Also,
-   `OSError` already covers the other error types listed, so the list repeats itself.
-   Harmless, but the code doesn't do what the log says.
-3. **The label search is very permissive.** `_extract_explanation_text` falls back to *any*
-   text field anywhere in the response. That is exactly how the generic release title got
-   picked up. Blocking that one string fixes the known case, but another unrelated field
-   could be picked up the same way. A stricter parser that reads only the known
-   explanation field would be safer.
-4. **Topic and phrasing are mixed together in the sanity check** (Part 5.4). This isn't a
-   bug, but it affects how we design the scenario prompts.
-5. **Model tests need the internet the first time.** `test_model.py` and `test_extract.py`
-   download GPT-2 and the SAE on the first run. They will be slow or fail in CI unless the
-   download is cached there.
-6. **Small code-quality items:** `_top_prompt_features` in `labels.py` only calls
-   `extract_features` and adds nothing (CLAUDE.md asks for no dead code).
-   `test_extract.py` asserts both `len(hits) == 20` and `len(hits) <= 20`; the second is
-   redundant.
-7. **Deprecated TransformerLens loader** (section 3.2). Migrate before TransformerLens 4.0.
-8. **Commit author is "Feature Monitor <feature-monitor@local>"**, not your name. This
-   repository has its own local git identity. That's fine if intended. If you want your
-   GitHub profile credited, set `git config user.name` and `user.email` in this repository.
-9. **`docs/setup-report.pdf` is out of date.** It says "No ML libraries were installed",
-   which was true on 8 October. Delete it or mark it historical.
-10. **Milestone numbering isn't written down anywhere.** CLAUDE.md mentions Milestone 7;
-    nothing lists M0 to M8.
+| # | Problem | What was done |
+|---|---|---|
+| 1 | Network failures were saved permanently as `"unlabelled"` | Failures are no longer cached; the next call retries |
+| 2 | The retry fired on every error, unlike what the log described | Only transient errors (timeouts, connection errors, 429, 5xx) are retried; 404 and invalid JSON give up at once |
+| 3 | The label search picked up any text in the response | It reads only `explanations[].description`. The generic-title workaround was removed, and 8 bad cache entries were re-fetched |
+| 4 | Topic and phrasing were mixed together in the sanity check | Added the matched prompt set and moved the rule into `eval/sanity.py` with tests (Part 5) |
+| 5 | Model tests needed the internet on the first run | Tagged `requires_model`; `make test-fast` skips them. CI should cache `~/.cache/huggingface` |
+| 6 | A pass-through helper and a redundant assertion | Both removed |
+| 7 | Deprecated `HookedTransformer` loader | Switched to `TransformerBridge`: bit-identical activations, warnings down from 4 to 2 |
+| 8 | Commits credited to "Feature Monitor <feature-monitor@local>" | Local identity removed; all commits rewritten to credit Shedrach Nwali, with dates and files unchanged |
+| 9 | `docs/setup-report.pdf` described the empty skeleton | Deleted. Recover it with `git show c5b023b:docs/setup-report.pdf` |
+| 10 | No milestone list | Closed by decision: milestones are given one at a time |
 
 ---
 
-## Part 8. What was done in this session
+## Part 8. What was done, in order
 
-1. **Audited milestone 1** (the repository skeleton). All six items and both "done when"
-   checks hold.
-2. **Pinned Python 3.12** (`.python-version`) and **ran `ruff format`**: 8 files changed,
-   layout only.
-3. **Committed** in two focused commits, keeping Copilot's work separate from the cleanup:
-   - `a9082b0` Add Neuronpedia label parsing fix and sanity-check notebook
-   - `92766a2` Pin Python 3.12 and apply ruff format
-4. **Reviewed the design doc** against its task. The structure was complete, but the
-   content was thin. Ran the 6-question interview and **rewrote `docs/design.md`**.
-5. **Checked the SAE loading warning.** It's harmless: FVU is identical both ways.
-6. **Wrote this report.**
+1. **Milestone 0.1 audit:** the skeleton checks all held. Pinned Python 3.12 and ran
+   `ruff format` (8 files, layout only).
+2. **Milestone 0.2:** reviewed the design doc, ran the 6-question interview and rewrote
+   `docs/design.md`.
+3. **First study report.**
+4. **Review fixes 1 to 10** (Part 7), one commit each, with a log entry each time.
+5. **Upstream warnings:** `docs/upstream-warnings.pdf`. Warning 1 is already being fixed
+   in SAELens PR #739. Warning 2 has no issue yet and five concrete problems.
+6. **Milestone 0.3:** README synced with the design; the first log entries dated.
+7. **Milestone 1.1 audit:** all items hold, with two deliberate changes (TransformerBridge
+   and CPU). Added the tensor-shapes table (section 3.3) and the MPS check (section 3.5).
+   The default stays CPU: the gain is about 6 ms per request, and CPU keeps local results
+   consistent with Docker.
+8. **This refresh** of the study report.
 
 ---
 
-## Part 9. What comes next (suggested order)
+## Part 9. What comes next
 
-1. Write the milestone list (M0 to M8) into `docs/design.md` or a `docs/milestones.md`.
-2. Fix issues 1 to 3 in `labels.py` (small, contained).
-3. Optional quick experiment: the sanity check at layers 4 and 11, with phrasing matched
-   across topics.
-4. Start the **storage layer**: SQLite table for requests and their top 20 features.
-5. Then the **traffic generator**, starting with the topic-change scenario.
-6. Then the **drift test** itself, with false alarm calibration on unchanged traffic.
+- **The next items of Milestone 1** (or whichever milestone you give next). Each will be
+  checked against what already exists, because extraction and labels are already built.
+- **Open questions** (from the log): which drift test to use, and whether the
+  whole-distribution topic signal is stronger than the common-feature check suggests;
+  layers 4 and 11.
+- **Optional upstream contributions:** test SAELens PR #739; open an issue about warning 2.
+- **When CI is set up:** run `ruff format --check` as well as `ruff check`, and cache the
+  model downloads.
 
 ---
 
@@ -558,12 +605,15 @@ Ranked by how much they matter. None breaks the current tests.
 |---|---|
 | `uv sync` | Install exactly what `uv.lock` lists |
 | `uv add <pkg>` / `uv add --dev <pkg>` | Add a dependency (never `pip install`) |
-| `make test` = `uv run pytest` | Run all tests |
+| `make test` = `uv run pytest` | Run all 13 tests |
+| `make test-fast` | Run the 10 tests that don't load the model |
 | `uv run pytest tests/monitor/test_labels.py -v` | Run one test file, listing each test |
 | `make lint` = `uv run ruff check .` | Look for code problems |
 | `make format` = `uv run ruff format .` | Fix layout |
 | `uv run ruff format --check .` | Check layout without changing anything |
 | `uv run python -m monitor.model` | Print model and SAE sizes |
 | `uv run python -m monitor.labels "a prompt"` | Top 10 features with labels |
+| `uv run python -m eval.mps_check` | Compare MPS with CPU on the 40 sanity prompts |
+| `uv run jupyter nbconvert --to notebook --execute --inplace eval/01_sanity_check.ipynb` | Re-run the sanity notebook |
 | `git log --oneline` | List commits |
 | `git status` | Show uncommitted changes |

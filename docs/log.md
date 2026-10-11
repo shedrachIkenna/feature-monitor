@@ -131,3 +131,9 @@ Verified Milestone 1.1 (load the model and SAE): all items hold, with two delibe
 Added `eval/mps_check.py`. Pass rule fixed before running: identical top-20 sets on all 40 sanity prompts and a relative activation difference of at most 0.1%. Result: PASS (40/40, relative difference 2.4e-7).
 Surprise: MPS was faster but not dramatically so, median 10.8 ms versus 17.2 ms on CPU over 120 calls.
 Still open: whether to switch the default device to MPS; the check covers layer-8 extraction only, not generation or steering.
+
+## 2026-10-11
+Kept CPU as the default device after the MPS check: the speed gain (about 6 ms per request) does not justify differing from the CPU-only Docker environment yet.
+Refreshed `docs/study-report.md` to match the code: milestone status table, TransformerBridge, the strict label parser and its error handling, all 13 tests, both sanity-check prompt sets with results, and the 10 resolved review issues.
+Surprise: much of the report had drifted within a single day of fixes, so it should be refreshed after each milestone, not left to accumulate.
+Still open: the remaining Milestone 1 items, still to be supplied.
