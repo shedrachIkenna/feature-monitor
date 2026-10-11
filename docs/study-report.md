@@ -317,15 +317,37 @@ each direction, so `(1, 8, 768)` means 1 × 8 × 768 numbers. Measured on
 The SAE's input size (the 768 in `W_enc`) must equal the model's `d_model` (768). If they
 differed, the SAE would have been built for a different model. `test_model.py` checks this.
 
-**Why drop BOS?** It is a fixed token that appears in every prompt, and its activations
-are huge. On the password prompt, the strongest feature on BOS was **502** versus **51.6**
-for the strongest real token. If it were kept, the same BOS features would take the top
-spots in *every* request and drown out the signal from what the user actually wrote.
+**Why drop BOS?** Measured on all 40 sanity prompts at layer 8:
+- BOS's residual-stream vector is about **25 times larger** than any other token's
+  (median 24.8×, range 22 to 28). Its strongest SAE feature is about **10 times**
+  stronger than any real token's. On the password prompt that is **502** versus **51.6**.
+- BOS's vector is **exactly identical in every prompt** (difference 0.0).
 
-**Max pooling.** Taking the maximum across tokens is called **max pooling**. It answers
-"did this feature fire strongly *anywhere* in the prompt?" It loses *how many* tokens it
-fired on. A feature that fires once and one that fires on every word look the same. This
-is a known, deliberate simplification (it is listed as open in the log).
+Why this happens:
+1. **BOS cannot see the prompt.** GPT-2 reads left to right: each token can only look at
+   itself and the tokens *before* it. BOS comes first, so it only ever sees itself. Its
+   numbers are the same whatever the user writes, so **it carries no information about
+   the prompt**. Our measurement proves this part.
+2. **The model uses it as a "parking spot".** Each token decides how much to **attend to**
+   (look at) each earlier token, and those attention weights must add up to 100%. When
+   nothing earlier is useful, models learn to send the spare attention to the first token,
+   which is called an **attention sink**. In that role the first position develops a very
+   large vector, called **massive activations**. This explanation comes from published
+   research (attention sinks, Xiao et al. 2023; massive activations, Sun et al. 2024); we
+   have not tested it ourselves.
+
+If BOS were kept, the same 8 BOS features would fire hugely in every request. They would
+take top-20 slots while carrying no information, because they are identical everywhere.
+
+**Max versus mean.** These are two ways to combine a feature's per-token values into one
+number per prompt (called **pooling**):
+- **Max** asks "did this feature fire strongly *anywhere*?", so a concept mentioned once
+  (one medical word in a long question) still counts fully.
+- **Mean** averages over all tokens, so that single mention is diluted by every other word,
+  and the longer the prompt, the weaker it gets.
+- **What max loses:** *how much* of the prompt the feature covers. A feature firing on one
+  token looks the same as one firing on every token, and one unusually high token can
+  dominate.
 
 **Speed.** Once the model is loaded, extraction takes a median of **17.2 ms** per prompt on
 CPU (120 calls, measured with `TransformerBridge`). The old `HookedTransformer` loader took

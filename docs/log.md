@@ -137,3 +137,9 @@ Kept CPU as the default device after the MPS check: the speed gain (about 6 ms p
 Refreshed `docs/study-report.md` to match the code: milestone status table, TransformerBridge, the strict label parser and its error handling, all 13 tests, both sanity-check prompt sets with results, and the 10 resolved review issues.
 Surprise: much of the report had drifted within a single day of fixes, so it should be refreshed after each milestone, not left to accumulate.
 Still open: the remaining Milestone 1 items, still to be supplied.
+
+## 2026-10-11
+Verified Milestone 1.2 (prompt to top features): the code meets every item. "How do I reset my password?" returns 20 features in 331 ms on the first call and 28 ms after that, on CPU, with model loading excluded.
+Added the two missing explanations to the study report: why BOS activations are large, and max versus mean pooling.
+Surprise: at layer 8, the BOS residual vector is about 25 times larger than any other token's (median 24.8x over 40 prompts) and exactly identical in every prompt, so it carries no prompt information.
+Still open: the attention-sink explanation for the large BOS norm comes from published work and is untested here.
