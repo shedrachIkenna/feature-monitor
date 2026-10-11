@@ -102,3 +102,9 @@ Added `docs/upstream-warnings.pdf` on the two remaining sae-lens warnings, for a
 Warning 1 (deprecated `transformer_lens.utils` import) is already fixed in open, unmerged SAELens PR #739 (issue #738); the useful contribution is testing that PR with our setup.
 Warning 2 (`model_from_pretrained_kwargs`) is unchanged on main with no existing issue; it names a non-existent attribute, recommends a deprecated API, fires even when loading is correct, and points at the wrong line.
 Surprise: transformer-lens 4.2.0 is released, but sae-lens 6.54.0 pins `<4.0.0`, so we stay on 3.9.0 for now.
+
+## 2026-10-11
+Addressed review issue 8: removed the repository-local git identity ("Feature Monitor <feature-monitor@local>") so commits use the global one, and rewrote all 13 existing commits to credit Shedrach Nwali.
+Checked: author name and email updated, original dates kept, final file contents identical to the pre-rewrite backup. Nothing had been pushed, so no one else's copy is affected.
+Every commit hash changed; the two old hashes in `docs/study-report.md` were updated to the new ones.
+Still open: issues 9-10 from the study report.

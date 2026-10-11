@@ -1,7 +1,7 @@
 # Feature Monitor: Study Report
 
 Prepared 2026-10-11. Covers everything in the repository up to and including commit
-`10ba200`, plus the rewritten `docs/design.md`.
+`92766a2`, plus the rewritten `docs/design.md`.
 
 Every number in this report was either printed by code in this repository or measured
 again while writing it. Where something has not been tested, the report says so.
@@ -493,8 +493,8 @@ Ranked by how much they matter. None breaks the current tests.
 2. **Pinned Python 3.12** (`.python-version`) and **ran `ruff format`**: 8 files changed,
    layout only.
 3. **Committed** in two focused commits, keeping Copilot's work separate from the cleanup:
-   - `3d9ec1e` Add Neuronpedia label parsing fix and sanity-check notebook
-   - `10ba200` Pin Python 3.12 and apply ruff format
+   - `a9082b0` Add Neuronpedia label parsing fix and sanity-check notebook
+   - `92766a2` Pin Python 3.12 and apply ruff format
 4. **Reviewed the design doc** against its task. The structure was complete, but the
    content was thin. Ran the 6-question interview and **rewrote `docs/design.md`**.
 5. **Checked the SAE loading warning.** It's harmless: FVU is identical both ways.
