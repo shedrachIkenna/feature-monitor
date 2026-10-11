@@ -56,13 +56,14 @@ def test_get_label_refreshes_generic_release_cache(monkeypatch, tmp_path) -> Non
 
 
 def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    cache_path = tmp_path / "labels.json"
+    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
 
     calls: list[str] = []
 
     def fake_urlopen(request, timeout):
         calls.append(request.full_url)
-        if len(calls) == 1:
+        if len(calls) % 2 == 1:
             raise TimeoutError("request timed out")
         raise urllib_error.HTTPError(request.full_url, 429, "rate limited", hdrs=None, fp=None)
 
@@ -70,6 +71,10 @@ def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -
 
     assert labels.get_label(12) == "unlabelled"
     assert len(calls) == 2
+    assert not cache_path.exists()
+
+    assert labels.get_label(12) == "unlabelled"
+    assert len(calls) == 4
 
 
 def test_main_prints_top_prompt_features_with_labels(monkeypatch, capsys) -> None:

@@ -55,3 +55,9 @@ Rewrote `docs/design.md` after a 6-question interview: four sudden scenarios (to
 Added `docs/study-report.md`, a full walkthrough of concepts, code, tests, the sanity check and review findings.
 Surprise: five of the six "enriched" sanity-check features describe question phrasing, not topic; and the SAE loading warning is harmless (FVU 0.1845 both ways on one prompt).
 Still open: label failures are cached permanently, retry is broader than documented, and the M0-M8 milestone list is not written down.
+
+## 2026-10-11
+Fixed review issue 1: `get_label` no longer caches "unlabelled" after both network attempts fail, so a brief outage is retried on the next call.
+Successful lookups with no explanation are still cached, since that is a real answer.
+The extended test failed on the old code (cache file written) and passes on the fix.
+Still open: issues 2-10 from the study report.

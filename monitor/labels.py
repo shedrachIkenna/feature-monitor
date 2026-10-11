@@ -127,8 +127,6 @@ def get_label(feature_id: int | str) -> str:
         except (TimeoutError, OSError, urllib_error.URLError, urllib_error.HTTPError, ValueError):
             if attempt == 0:
                 continue
-            cache[feature_key] = "unlabelled"
-            _write_cache(cache)
             return "unlabelled"
 
     return "unlabelled"
