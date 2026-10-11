@@ -113,3 +113,8 @@ Still open: issues 9-10 from the study report.
 Addressed review issue 9: deleted `docs/setup-report.pdf`, which described the 8 October skeleton ("No ML libraries were installed") and was now misleading; the study report supersedes it.
 It stays recoverable from history with `git show c5b023b:docs/setup-report.pdf`.
 Still open: issue 10 (milestone list) from the study report.
+
+## 2026-10-11
+Closed review issue 10 by decision: the milestone sequence will be supplied one milestone at a time rather than written down in advance, so there is no `docs/milestones.md` yet.
+All 10 issues from the study report's review are now resolved; 13 tests pass, and the only remaining warnings come from inside sae-lens (see `docs/upstream-warnings.pdf`).
+Still open: the sae-lens upstream contributions, the drift-test choice, and layers 4 and 11 for the sanity check.
