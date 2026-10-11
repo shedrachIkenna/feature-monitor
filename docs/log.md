@@ -90,3 +90,9 @@ Still open: GitHub Actions should cache `~/.cache/huggingface` so the model test
 Addressed review issue 6: removed the `_top_prompt_features` pass-through so `main` calls `extract_features` directly, and dropped a redundant `len(hits) <= 20` assertion.
 The label test now imports `FeatureHit` from `monitor.extract`, where it is defined. No behaviour change; all 12 tests pass and the CLI still prints labels.
 Still open: issues 7-10 from the study report.
+
+## 2026-10-11
+Addressed review issue 7: `load_model_and_sae` now uses `TransformerBridge.boot_transformers("gpt2")` with `enable_compatibility_mode()` instead of the deprecated `HookedTransformer.from_pretrained`.
+On all 40 sanity prompts the layer-8 activations were bit-for-bit identical (max difference 0.0) and all 40 top-20 sets matched; a regression test now checks this on two prompts.
+Surprise: in one 20-prompt measurement the bridge was faster, 0.0179 s versus 0.0425 s per prompt. Test warnings dropped from 4 to 2.
+Still open: the 2 remaining warnings come from inside sae-lens (documented for a possible upstream contribution); delete the regression test when TransformerLens 4.0 removes HookedTransformer.

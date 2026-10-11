@@ -3,18 +3,19 @@
 from functools import lru_cache
 
 from sae_lens import SAE
-from transformer_lens import HookedTransformer
+from transformer_lens.model_bridge import TransformerBridge
 
-MODEL_NAME = "gpt2-small"
+MODEL_NAME = "gpt2"
 SAE_RELEASE = "gpt2-small-res-jb"
 SAE_ID = "blocks.8.hook_resid_pre"
 
 
 @lru_cache(maxsize=1)
-def load_model_and_sae() -> tuple[HookedTransformer, SAE]:
+def load_model_and_sae() -> tuple[TransformerBridge, SAE]:
     """Load GPT-2 Small and its block-8 residual-pre SAE once per process."""
     device = "cpu"
-    model = HookedTransformer.from_pretrained(MODEL_NAME, device=device)
+    model = TransformerBridge.boot_transformers(MODEL_NAME, device=device)
+    model.enable_compatibility_mode()
     sae = SAE.from_pretrained(SAE_RELEASE, SAE_ID, device=device)
     return model, sae
 
