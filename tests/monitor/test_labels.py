@@ -77,6 +77,27 @@ def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -
     assert len(calls) == 4
 
 
+def _count_calls_for_http_error(monkeypatch, tmp_path, code: int) -> int:
+    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout):
+        calls.append(request.full_url)
+        raise urllib_error.HTTPError(request.full_url, code, "error", hdrs=None, fp=None)
+
+    monkeypatch.setattr(labels.urllib_request, "urlopen", fake_urlopen)
+    assert labels.get_label(12) == "unlabelled"
+    return len(calls)
+
+
+def test_get_label_does_not_retry_permanent_http_error(monkeypatch, tmp_path) -> None:
+    assert _count_calls_for_http_error(monkeypatch, tmp_path, 404) == 1
+
+
+def test_get_label_retries_server_error_once(monkeypatch, tmp_path) -> None:
+    assert _count_calls_for_http_error(monkeypatch, tmp_path, 503) == 2
+
+
 def test_main_prints_top_prompt_features_with_labels(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         labels,

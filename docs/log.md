@@ -61,3 +61,9 @@ Fixed review issue 1: `get_label` no longer caches "unlabelled" after both netwo
 Successful lookups with no explanation are still cached, since that is a real answer.
 The extended test failed on the old code (cache file written) and passes on the fix.
 Still open: issues 2-10 from the study report.
+
+## 2026-10-11
+Fixed review issue 2: `get_label` now retries once only on transient failures (timeouts, connection errors, HTTP 429 and 5xx), and gives up immediately on other HTTP errors such as 404 or on invalid JSON.
+Only the network call sits inside the `try` now, and the redundant exception list is gone (`OSError` already covers timeouts and URL errors).
+The new 404 test failed on the old code; the 503 test passes on both and guards the retry path.
+Still open: issues 3-10 from the study report.

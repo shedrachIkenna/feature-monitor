@@ -114,20 +114,25 @@ def get_label(feature_id: int | str) -> str:
     if feature_key in cache and cache[feature_key] != GENERIC_RELEASE_LABEL:
         return cache[feature_key]
 
-    for attempt in range(2):
+    for _ in range(2):
         try:
             payload = _fetch_feature_payload(feature_key)
-            label = _extract_explanation_text(payload)
-            text = (label or "").strip()
-            if not text or text == GENERIC_RELEASE_LABEL:
-                text = "unlabelled"
-            cache[feature_key] = text
-            _write_cache(cache)
-            return text
-        except (TimeoutError, OSError, urllib_error.URLError, urllib_error.HTTPError, ValueError):
-            if attempt == 0:
-                continue
+        except urllib_error.HTTPError as exc:
+            if exc.code != 429 and exc.code < 500:
+                return "unlabelled"
+            continue
+        except OSError:  # timeouts and connection errors
+            continue
+        except ValueError:  # response was not valid JSON
             return "unlabelled"
+
+        label = _extract_explanation_text(payload)
+        text = (label or "").strip()
+        if not text or text == GENERIC_RELEASE_LABEL:
+            text = "unlabelled"
+        cache[feature_key] = text
+        _write_cache(cache)
+        return text
 
     return "unlabelled"
 
