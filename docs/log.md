@@ -67,3 +67,9 @@ Fixed review issue 2: `get_label` now retries once only on transient failures (t
 Only the network call sits inside the `try` now, and the redundant exception list is gone (`OSError` already covers timeouts and URL errors).
 The new 404 test failed on the old code; the 503 test passes on both and guards the retry path.
 Still open: issues 3-10 from the study report.
+
+## 2026-10-11
+Fixed review issue 3: the label parser now reads only `explanations[].description`; the 45-line recursive search and the generic-release-title workaround are gone.
+Correction to an earlier entry: `jsonDetails[].text` is not the explanation. It lives under `explanations[].scores[]` and holds example text snippets used to score explanations; the generic title came from `sourceSet.description`.
+8 of 14 local cache entries held the generic title; they were removed and re-fetched live, and the 6 sanity-check labels still match the notebook.
+Still open: issues 4-10 from the study report.

@@ -13,9 +13,6 @@ MODEL_ID = "gpt2-small"
 SOURCE_ID = "8-res-jb"
 CACHE_PATH = Path(__file__).resolve().with_name("labels_cache.json")
 REQUEST_TIMEOUT_SECONDS = 10
-GENERIC_RELEASE_LABEL = (
-    "Open Source Sparse Autoencoders for all Residual Stream Layers of GPT2-Small"
-)
 
 
 def _feature_url(feature_id: int | str) -> str:
@@ -52,51 +49,15 @@ def _write_cache(cache: dict[str, str]) -> None:
     )
 
 
-def _extract_explanation_text(payload: object) -> str | None:
-    """Pull the human-readable explanation text out of a Neuronpedia response."""
-    if isinstance(payload, dict):
-        explanations = payload.get("explanations")
-        if isinstance(explanations, list):
-            for explanation in explanations:
-                if isinstance(explanation, dict):
-                    description = explanation.get("description")
-                    if isinstance(description, str) and description.strip():
-                        return description.strip()
-
-        for key in ("explanation", "label", "text", "description"):
-            value = payload.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-        json_details = payload.get("jsonDetails")
-        if json_details is not None:
-            nested_text = _extract_explanation_text(json_details)
-            if nested_text:
-                return nested_text
-
-        for value in payload.values():
-            found = _extract_explanation_text(value)
-            if found:
-                return found
+def _explanation_from_payload(payload: object) -> str | None:
+    """Return the first explanation description in a Neuronpedia feature response."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("explanations"), list):
         return None
-
-    if isinstance(payload, list):
-        for item in payload:
-            found = _extract_explanation_text(item)
-            if found:
-                return found
-        return None
-
-    if isinstance(payload, str):
-        stripped = payload.strip()
-        if not stripped:
-            return None
-        try:
-            parsed = json.loads(stripped)
-        except json.JSONDecodeError:
-            return None
-        return _extract_explanation_text(parsed)
-
+    for explanation in payload["explanations"]:
+        if isinstance(explanation, dict):
+            description = explanation.get("description")
+            if isinstance(description, str) and description.strip():
+                return description.strip()
     return None
 
 
@@ -111,7 +72,7 @@ def get_label(feature_id: int | str) -> str:
     """Return the readable label for a feature or 'unlabelled' on failure."""
     feature_key = str(feature_id)
     cache = _read_cache()
-    if feature_key in cache and cache[feature_key] != GENERIC_RELEASE_LABEL:
+    if feature_key in cache:
         return cache[feature_key]
 
     for _ in range(2):
@@ -126,10 +87,7 @@ def get_label(feature_id: int | str) -> str:
         except ValueError:  # response was not valid JSON
             return "unlabelled"
 
-        label = _extract_explanation_text(payload)
-        text = (label or "").strip()
-        if not text or text == GENERIC_RELEASE_LABEL:
-            text = "unlabelled"
+        text = _explanation_from_payload(payload) or "unlabelled"
         cache[feature_key] = text
         _write_cache(cache)
         return text

@@ -26,7 +26,14 @@ def test_get_label_fetches_and_caches_label(monkeypatch, tmp_path) -> None:
 
     def fake_urlopen(request, timeout):
         calls.append(request.full_url)
-        return FakeResponse({"jsonDetails": '[{"text": "economic policy and inflation"}]'})
+        return FakeResponse(
+            {
+                "explanations": [
+                    {"description": "economic policy and inflation"},
+                    {"description": "a second, later explanation"},
+                ]
+            }
+        )
 
     monkeypatch.setattr(labels.urllib_request, "urlopen", fake_urlopen)
 
@@ -37,22 +44,20 @@ def test_get_label_fetches_and_caches_label(monkeypatch, tmp_path) -> None:
     assert cached["7"] == "economic policy and inflation"
 
 
-def test_get_label_refreshes_generic_release_cache(monkeypatch, tmp_path) -> None:
-    cache_path = tmp_path / "labels.json"
-    cache_path.write_text(json.dumps({"7": labels.GENERIC_RELEASE_LABEL}))
-    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+def test_get_label_ignores_text_outside_explanations(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
     monkeypatch.setattr(
         labels,
         "_fetch_feature_payload",
         lambda feature_id: {
-            "description": labels.GENERIC_RELEASE_LABEL,
-            "explanations": [{"description": "medical terms and inflammation"}],
+            "sourceSet": {"description": "Open Source Sparse Autoencoders for GPT2-Small"},
+            "explanations": [
+                {"description": "", "scores": [{"jsonDetails": '[{"text": "example snippet"}]'}]}
+            ],
         },
     )
 
-    assert labels.get_label(7) == "medical terms and inflammation"
-    cached = json.loads(cache_path.read_text())
-    assert cached["7"] == "medical terms and inflammation"
+    assert labels.get_label(7) == "unlabelled"
 
 
 def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -> None:
