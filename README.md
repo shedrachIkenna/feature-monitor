@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Changes in incoming requests or model behavior can alter a deployed language model's behavior. Feature Monitor tests whether shifts in one layer's GPT-2 Small activations, encoded as sparse autoencoder features, can flag changes, and compares those alerts with monitoring prompt sentence embeddings using the same drift method. This is an experiment: neither approach is assumed to work better, and results will include null or negative findings.
+When a deployed language model starts receiving different requests, or the model itself changes, operators often find out late. Feature Monitor tests whether shifts in one layer's GPT-2 Small activations, encoded as sparse autoencoder features, can flag changes, and compares those alerts with monitoring prompt sentence embeddings using the same drift method. This is an experiment: neither approach is assumed to work better, and results will include null or negative findings.
 
 **Status: in progress**
 
@@ -12,6 +12,10 @@ Changes in incoming requests or model behavior can alter a deployed language mod
 uv sync
 uv run pytest
 ```
+
+The first test run downloads GPT-2 Small and its SAE. `make test-fast` skips the tests that need them.
+
+See [docs/design.md](docs/design.md) for the design.
 
 ## Folder Layout
 

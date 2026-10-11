@@ -1,5 +1,6 @@
 # Build Log
 
+## 2026-10-08
 Initialized the Python 3.12 uv project and added pytest and Ruff as development tools.
 Created the backend, monitor, traffic, eval, frontend, docs, and mirrored test skeletons.
 No unexpected issues; the configured Python version and development tools are available.
@@ -118,3 +119,9 @@ Still open: issue 10 (milestone list) from the study report.
 Closed review issue 10 by decision: the milestone sequence will be supplied one milestone at a time rather than written down in advance, so there is no `docs/milestones.md` yet.
 All 10 issues from the study report's review are now resolved; 13 tests pass, and the only remaining warnings come from inside sae-lens (see `docs/upstream-warnings.pdf`).
 Still open: the sae-lens upstream contributions, the drift-test choice, and layers 4 and 11 for the sanity check.
+
+## 2026-10-11
+Verified Milestone 0.3 (README and project board): README had the required sections; its first sentence was rewritten to match the design, with a note on the first-run model download, `make test-fast`, and a link to the design.
+Added the missing 2026-10-08 heading to the first two log entries without changing their wording.
+Surprise: the earlier M0-M8 issue list was inferred, not taken from the design. The milestone sequence now comes from the user: Milestone 0 is Scope and setup (0.1 repository and environment, 0.2 design document, 0.3 README and project board).
+Still open: which milestone number covers the model loading, extraction, labels and sanity-check work already done.
