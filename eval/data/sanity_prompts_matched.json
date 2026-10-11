@@ -1,0 +1,26 @@
+{
+  "medical": [
+    "What causes a migraine?",
+    "What are the signs of dehydration?",
+    "How do I deal with a fever?",
+    "Why does an allergic reaction happen?",
+    "Is high blood pressure serious?",
+    "Can you explain type 2 diabetes?",
+    "How common is asthma?",
+    "What is the best way to prevent the flu?",
+    "How do you test for anaemia?",
+    "What should I know about a vitamin D deficiency?"
+  ],
+  "coding": [
+    "What causes a memory leak?",
+    "What are the signs of a race condition?",
+    "How do I deal with a merge conflict?",
+    "Why does a stack overflow happen?",
+    "Is a null pointer error serious?",
+    "Can you explain recursion?",
+    "How common is an off-by-one error?",
+    "What is the best way to prevent a deadlock?",
+    "How do you test for a regression?",
+    "What should I know about a segmentation fault?"
+  ]
+}
