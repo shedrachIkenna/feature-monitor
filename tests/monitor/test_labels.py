@@ -1,6 +1,9 @@
 import json
+from email.message import Message
 from typing import Self
 from urllib import error as urllib_error
+
+import pytest
 
 from monitor import labels
 from monitor.extract import FeatureHit
@@ -18,6 +21,14 @@ class FakeResponse:
 
     def read(self) -> bytes:
         return json.dumps(self.payload).encode("utf-8")
+
+
+@pytest.fixture(autouse=True)
+def sleeps(monkeypatch) -> list[float]:
+    """Replace the retry pause so tests run instantly, recording each requested delay."""
+    recorded: list[float] = []
+    monkeypatch.setattr(labels.time, "sleep", recorded.append)
+    return recorded
 
 
 def test_get_label_fetches_and_caches_label(monkeypatch, tmp_path) -> None:
@@ -61,7 +72,7 @@ def test_get_label_ignores_text_outside_explanations(monkeypatch, tmp_path) -> N
     assert labels.get_label(7) == "unlabelled"
 
 
-def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -> None:
+def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path, sleeps) -> None:
     cache_path = tmp_path / "labels.json"
     monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
 
@@ -81,27 +92,43 @@ def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path) -
 
     assert labels.get_label(12) == "unlabelled"
     assert len(calls) == 4
+    assert sleeps == [labels.RETRY_DELAY_SECONDS, labels.RETRY_DELAY_SECONDS]
 
 
-def _count_calls_for_http_error(monkeypatch, tmp_path, code: int) -> int:
+def _count_calls_for_http_error(
+    monkeypatch, tmp_path, code: int, retry_after: str | None = None
+) -> int:
     monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
     calls: list[str] = []
+    headers = Message()
+    if retry_after is not None:
+        headers["Retry-After"] = retry_after
 
     def fake_urlopen(request, timeout):
         calls.append(request.full_url)
-        raise urllib_error.HTTPError(request.full_url, code, "error", hdrs=None, fp=None)
+        raise urllib_error.HTTPError(request.full_url, code, "error", hdrs=headers, fp=None)
 
     monkeypatch.setattr(labels.urllib_request, "urlopen", fake_urlopen)
     assert labels.get_label(12) == "unlabelled"
     return len(calls)
 
 
-def test_get_label_does_not_retry_permanent_http_error(monkeypatch, tmp_path) -> None:
+def test_get_label_does_not_retry_permanent_http_error(monkeypatch, tmp_path, sleeps) -> None:
     assert _count_calls_for_http_error(monkeypatch, tmp_path, 404) == 1
+    assert sleeps == []
 
 
-def test_get_label_retries_server_error_once(monkeypatch, tmp_path) -> None:
+def test_get_label_retries_server_error_once(monkeypatch, tmp_path, sleeps) -> None:
     assert _count_calls_for_http_error(monkeypatch, tmp_path, 503) == 2
+    assert sleeps == [labels.RETRY_DELAY_SECONDS]
+
+
+@pytest.mark.parametrize(("retry_after", "expected"), [("3", 3.0), ("120", 10.0)])
+def test_get_label_honours_capped_retry_after(
+    monkeypatch, tmp_path, sleeps, retry_after: str, expected: float
+) -> None:
+    assert _count_calls_for_http_error(monkeypatch, tmp_path, 429, retry_after) == 2
+    assert sleeps == [expected]
 
 
 def test_main_prints_top_prompt_features_with_labels(monkeypatch, capsys) -> None:

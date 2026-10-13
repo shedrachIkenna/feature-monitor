@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
@@ -13,6 +14,8 @@ MODEL_ID = "gpt2-small"
 SOURCE_ID = "8-res-jb"
 CACHE_PATH = Path(__file__).resolve().with_name("labels_cache.json")
 REQUEST_TIMEOUT_SECONDS = 10
+RETRY_DELAY_SECONDS = 1.0
+MAX_RETRY_DELAY_SECONDS = 10.0
 
 
 def _feature_url(feature_id: int | str) -> str:
@@ -68,6 +71,33 @@ def _fetch_feature_payload(feature_id: int | str) -> object:
         return json.loads(response.read().decode("utf-8"))
 
 
+def _retry_delay(exc: urllib_error.HTTPError) -> float:
+    """Return the pause before a retry, honouring a numeric Retry-After header up to a cap."""
+    retry_after = exc.headers.get("Retry-After") if exc.headers else None
+    try:
+        return min(max(float(retry_after), 0.0), MAX_RETRY_DELAY_SECONDS)
+    except (TypeError, ValueError):
+        return RETRY_DELAY_SECONDS
+
+
+def _fetch_with_one_retry(feature_key: str) -> object | None:
+    """Fetch a payload, pausing and retrying once on transient errors; None on failure."""
+    for attempt in range(2):
+        try:
+            return _fetch_feature_payload(feature_key)
+        except urllib_error.HTTPError as exc:
+            if exc.code != 429 and exc.code < 500:
+                return None
+            delay = _retry_delay(exc)
+        except OSError:  # timeouts and connection errors
+            delay = RETRY_DELAY_SECONDS
+        except ValueError:  # response was not valid JSON
+            return None
+        if attempt == 0:
+            time.sleep(delay)
+    return None
+
+
 def get_label(feature_id: int | str) -> str:
     """Return the readable label for a feature or 'unlabelled' on failure."""
     feature_key = str(feature_id)
@@ -75,24 +105,14 @@ def get_label(feature_id: int | str) -> str:
     if feature_key in cache:
         return cache[feature_key]
 
-    for _ in range(2):
-        try:
-            payload = _fetch_feature_payload(feature_key)
-        except urllib_error.HTTPError as exc:
-            if exc.code != 429 and exc.code < 500:
-                return "unlabelled"
-            continue
-        except OSError:  # timeouts and connection errors
-            continue
-        except ValueError:  # response was not valid JSON
-            return "unlabelled"
+    payload = _fetch_with_one_retry(feature_key)
+    if payload is None:
+        return "unlabelled"
 
-        text = _explanation_from_payload(payload) or "unlabelled"
-        cache[feature_key] = text
-        _write_cache(cache)
-        return text
-
-    return "unlabelled"
+    text = _explanation_from_payload(payload) or "unlabelled"
+    cache[feature_key] = text
+    _write_cache(cache)
+    return text
 
 
 def main(prompt: str, k: int = 10) -> None:

@@ -143,3 +143,9 @@ Verified Milestone 1.2 (prompt to top features): the code meets every item. "How
 Added the two missing explanations to the study report: why BOS activations are large, and max versus mean pooling.
 Surprise: at layer 8, the BOS residual vector is about 25 times larger than any other token's (median 24.8x over 40 prompts) and exactly identical in every prompt, so it carries no prompt information.
 Still open: the attention-sink explanation for the large BOS norm comes from published work and is untested here.
+
+## 2026-10-13
+Verified Milestone 1.3 (feature labels): a live request to the endpoint returned HTTP 200, and the script prints the top 10 labelled features. One gap: the retry fired instantly, which is not polite under a rate limit.
+`get_label` now pauses before its single retry: 1 s by default, or a numeric `Retry-After` header on 429/5xx, capped at 10 s. Permanent errors still return at once without pausing.
+Tests replace `time.sleep` with a recorder; the 4 pause tests failed on the old logic and pass now (15 tests in total).
+Surprise: Neuronpedia sent no rate-limit headers on a successful request, so the 1 s default is our own choice.
