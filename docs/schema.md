@@ -12,7 +12,8 @@ an optional `scenario` tag, and `gen_ms`/`extract_ms` timings. Indexed on `creat
 (1 = strongest). Keyed by `(request_id, rank)`; `request_id` must exist; indexed on `feature_id`.
 
 **alerts**: one row per drift alert: `created_at`, `kind`, optional `feature_id`, a numeric `score`,
-and `details` as JSON text. No read or write functions yet; they arrive with the drift job.
+and `details` as JSON text. Written by the drift job (`monitor/job.py`) with `save_alert`;
+read by `GET /alerts` through `list_alerts`.
 
 ## Why hits have their own table
 

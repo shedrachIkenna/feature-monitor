@@ -85,6 +85,21 @@ def load_or_embed(prompts: Sequence[str], cache: Path) -> np.ndarray:
     return embeddings
 
 
+def embed_baseline_path() -> Path:
+    """Return monitor/baselines/minilm_k50.json; its centroids sit next to it."""
+    return BASELINES_DIR / f"{NAME}.json"
+
+
+def centroids_path(baseline: Path) -> Path:
+    """Return the centroid file that sits next to an embedding baseline."""
+    return baseline.with_name(f"{baseline.stem}_centroids.npy")
+
+
+def load_centroids(baseline: Path) -> np.ndarray:
+    """Read the cluster centres saved by main()."""
+    return np.load(centroids_path(baseline))
+
+
 def fit_centroids(
     embeddings: np.ndarray, k: int = N_CLUSTERS, seed: int = KMEANS_SEED
 ) -> np.ndarray:
@@ -132,14 +147,14 @@ def main() -> None:
         "sae_baseline_created": sae_metadata["created"],
         "created": datetime.now(UTC).isoformat(timespec="seconds"),
     }
-    path = BASELINES_DIR / f"{NAME}.json"
+    path = embed_baseline_path()
     rates = {c: n / len(baseline_prompts) * 1000 for c, n in counts.items()}
     save_baseline(
         {"prompt_count": len(baseline_prompts), "counts": counts, "rate_per_1000": rates},
         metadata,
         path,
     )
-    np.save(path.with_name(f"{NAME}_centroids.npy"), centroids)
+    np.save(centroids_path(path), centroids)
     pool_sizes = {name: len(sets) for name, sets in pools.items()}
     save_threshold(results[config.window_size], config, metadata, pool_sizes, threshold_path(path))
     embed_threshold = load_threshold(threshold_path(path), config.window_size, metadata["created"])

@@ -1,0 +1,173 @@
+"""The scheduled drift check: score the latest window with each detector and store alerts.
+
+A detector is the SAE or the embedding representation plus its baseline and calibrated threshold.
+Both turn the window's requests into one ID list per prompt (top-k SAE features, or a one-item
+cluster list) and then share everything else: the Jensen-Shannon score (score_window) and the
+per-ID ranking of what drifted (feature_drift). The window is the latest window_size requests,
+because each threshold is only valid for the window size it was calibrated with.
+"""
+
+from collections import Counter, deque
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from itertools import chain
+from pathlib import Path
+
+from backend import storage
+from monitor.baseline import baseline_path, load_baseline
+from monitor.calibrate import load_threshold, threshold_path
+from monitor.config import load_config
+from monitor.drift import feature_drift, score_window
+from monitor.embed_drift import assign_clusters, embed_baseline_path, embed_prompts, load_centroids
+from monitor.labels import get_label
+
+TOP_N = 5
+# Recent checks kept in memory (about 17 hours at one check a minute).
+CHECK_HISTORY = 1000
+EXAMPLES_PER_CLUSTER = 2
+EXAMPLE_CHARS = 120
+
+# Each request in a window is a dict with "id", "prompt" and "features" (top-k feature IDs).
+ToSets = Callable[[Sequence[dict]], list[list[int]]]
+Describe = Callable[[int, Sequence[dict], Sequence[Sequence[int]]], str]
+
+
+@dataclass(frozen=True)
+class Detector:
+    """One representation of a window, with the baseline and threshold it is judged against."""
+
+    name: str
+    baseline_counts: dict[int, int]
+    baseline_n: int
+    threshold: float
+    to_sets: ToSets
+    describe: Describe
+
+
+def top_drifting(
+    detector: Detector, requests: Sequence[dict], sets: Sequence[Sequence[int]], n: int = TOP_N
+) -> list[dict]:
+    """Rank the window's IDs with the per-ID drift test and describe the top n."""
+    window_counts = Counter(chain.from_iterable(sets))
+    ranked = feature_drift(detector.baseline_counts, detector.baseline_n, window_counts, len(sets))
+    return [
+        {
+            "id": d.feature_id,
+            "label": detector.describe(d.feature_id, requests, sets),
+            "baseline_rate": d.baseline_rate,
+            "window_rate": d.window_rate,
+            "ratio": d.ratio,
+            "adjusted_p": d.adjusted_p,
+        }
+        for d in ranked[:n]
+    ]
+
+
+class DriftJob:
+    """Checks the latest window each time it runs; skips when no new request has arrived."""
+
+    def __init__(
+        self, detectors: Sequence[Detector], window_size: int, path: Path | None = None
+    ) -> None:
+        self.detectors = list(detectors)
+        self.window_size = window_size
+        self.path = path
+        self.last_checked_id: int | None = None
+        # Every check's scores, alert or not, so a quiet run can be told apart from no checks.
+        self.checks: deque[dict] = deque(maxlen=CHECK_HISTORY)
+
+    def latest_window(self) -> list[dict]:
+        """Return the latest window_size requests, oldest first, with their feature IDs."""
+        requests = storage.recent_requests(self.window_size, self.path)[::-1]
+        hits = storage.hits_for_requests([r["id"] for r in requests], self.path)
+        return [
+            {
+                "id": r["id"],
+                "prompt": r["prompt"],
+                "features": [h["feature_id"] for h in hits[r["id"]]],
+            }
+            for r in requests
+        ]
+
+    def run(self) -> list[int]:
+        """Score the latest full window with every detector; return the ids of new alerts."""
+        requests = self.latest_window()
+        if len(requests) < self.window_size or requests[-1]["id"] == self.last_checked_id:
+            return []
+        self.last_checked_id = requests[-1]["id"]
+
+        alert_ids = []
+        scores = {}
+        for detector in self.detectors:
+            sets = detector.to_sets(requests)
+            score = score_window(detector.baseline_counts, sets)
+            scores[detector.name] = score
+            if score <= detector.threshold:
+                continue
+            details = {
+                "threshold": detector.threshold,
+                "window_size": self.window_size,
+                "first_request_id": requests[0]["id"],
+                "last_request_id": requests[-1]["id"],
+                "top": top_drifting(detector, requests, sets),
+            }
+            alert_ids.append(storage.save_alert(detector.name, score, details, path=self.path))
+        self.checks.append({"last_request_id": requests[-1]["id"], "scores": scores})
+        return alert_ids
+
+
+def sae_sets(requests: Sequence[dict]) -> list[list[int]]:
+    """Each request's stored top-k SAE features."""
+    return [r["features"] for r in requests]
+
+
+def example_prompts(cluster: int, requests: Sequence[dict], sets: Sequence[Sequence[int]]) -> str:
+    """Describe a cluster, which has no label, by a few of the window's prompts in it."""
+    examples = [
+        r["prompt"][:EXAMPLE_CHARS] for r, s in zip(requests, sets, strict=True) if cluster in s
+    ]
+    return " | ".join(examples[:EXAMPLES_PER_CLUSTER])
+
+
+def _baseline_and_threshold(path: Path, window_size: int) -> tuple[dict, float]:
+    """Load a baseline and the threshold calibrated for it at this window size."""
+    metadata, baseline = load_baseline(path)
+    return baseline, load_threshold(threshold_path(path), window_size, metadata["created"])
+
+
+def sae_detector(window_size: int) -> Detector:
+    """The SAE detector: stored top-k features, labelled from Neuronpedia."""
+    baseline, threshold = _baseline_and_threshold(baseline_path(), window_size)
+    return Detector(
+        "sae",
+        baseline["counts"],
+        baseline["prompt_count"],
+        threshold,
+        sae_sets,
+        lambda feature_id, *_: get_label(feature_id),
+    )
+
+
+def embedding_detector(window_size: int) -> Detector:
+    """The embedding detector: MiniLM clusters, described by example prompts."""
+    path = embed_baseline_path()
+    baseline, threshold = _baseline_and_threshold(path, window_size)
+    centroids = load_centroids(path)
+
+    def cluster_sets(requests: Sequence[dict]) -> list[list[int]]:
+        return assign_clusters(embed_prompts([r["prompt"] for r in requests]), centroids)
+
+    return Detector(
+        "embedding",
+        baseline["counts"],
+        baseline["prompt_count"],
+        threshold,
+        cluster_sets,
+        example_prompts,
+    )
+
+
+def load_drift_job() -> DriftJob:
+    """Build the job with both detectors from their saved baselines and thresholds."""
+    window_size = load_config().window_size
+    return DriftJob([sae_detector(window_size), embedding_detector(window_size)], window_size)

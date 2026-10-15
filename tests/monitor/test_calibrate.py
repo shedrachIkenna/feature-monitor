@@ -64,7 +64,13 @@ def test_calibrate_is_reproducible_and_check_half_rarely_exceeds() -> None:
 
 
 def test_saved_threshold_reloads_and_rejects_mismatches(tmp_path: Path) -> None:
-    config = DriftConfig(window_size=100, threshold_percentile=99, calibration_windows=10, seed=0)
+    config = DriftConfig(
+        window_size=100,
+        threshold_percentile=99,
+        calibration_windows=10,
+        seed=0,
+        check_interval_seconds=60,
+    )
     result = {"threshold": 0.12, "window_size": 100, "check_exceed_rate": 0.01}
     path = threshold_path(tmp_path / "gpt2_8.json")
     save_threshold(result, config, {"created": "t0"}, {"a": 1}, path)

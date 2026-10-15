@@ -5,7 +5,9 @@ from fastapi.testclient import TestClient
 
 from backend import storage
 from backend.app import EXTRACT_ENV, EngineResult, create_app, extraction_enabled
+from monitor.config import load_config
 from monitor.extract import FeatureHit
+from monitor.job import DriftJob
 
 
 class FakeEngine:
@@ -109,3 +111,30 @@ def test_extraction_flag_is_on_unless_set_to_zero(monkeypatch, value, expected) 
     else:
         monkeypatch.setenv(EXTRACT_ENV, value)
     assert extraction_enabled() is expected
+
+
+def test_alerts_endpoint_lists_stored_alerts(client) -> None:
+    storage.save_alert("embedding", 0.05, {"top": [{"id": 3}]})
+
+    [alert] = client.get("/alerts").json()
+
+    assert (alert["kind"], alert["score"], alert["details"]) == (
+        "embedding",
+        0.05,
+        {"top": [{"id": 3}]},
+    )
+
+
+def test_app_without_job_has_no_scheduler(client) -> None:
+    assert client.app.state.scheduler is None
+
+
+def test_drift_job_is_scheduled_at_the_configured_interval(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    job = DriftJob([], window_size=500)
+
+    with TestClient(create_app(FakeEngine, lambda: job)) as test_client:
+        [scheduled] = test_client.app.state.scheduler.get_jobs()
+
+    assert scheduled.func == job.run
+    assert scheduled.trigger.interval.total_seconds() == load_config().check_interval_seconds

@@ -4,7 +4,10 @@ import pytest
 
 from monitor.config import load_config
 
-VALID = "window_size: 500\nthreshold_percentile: 99\ncalibration_windows: 1000\nseed: 0\n"
+VALID = (
+    "window_size: 500\nthreshold_percentile: 99\ncalibration_windows: 1000\nseed: 0\n"
+    "check_interval_seconds: 60\n"
+)
 
 
 def test_project_config_loads() -> None:
@@ -28,6 +31,7 @@ def test_load_config_reads_values(tmp_path: Path) -> None:
     [
         (VALID.replace("500", "0"), ValueError),
         (VALID.replace("99", "100"), ValueError),
+        (VALID.replace("60", "0"), ValueError),
         (VALID + "extra: 1\n", TypeError),
     ],
 )

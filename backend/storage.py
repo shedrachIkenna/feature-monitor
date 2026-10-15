@@ -9,6 +9,7 @@ the database enforce one hit per rank per request.
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from collections.abc import Iterator, Sequence
@@ -168,3 +169,31 @@ def request_count(since: datetime, until: datetime, path: Path | None = None) ->
             (format_timestamp(since), format_timestamp(until)),
         ).fetchone()
     return count
+
+
+def save_alert(
+    kind: str,
+    score: float,
+    details: dict,
+    feature_id: int | None = None,
+    created_at: datetime | None = None,
+    path: Path | None = None,
+) -> int:
+    """Store one drift alert with its details as JSON text; return the alert id."""
+    timestamp = format_timestamp(created_at or datetime.now(UTC))
+    with _connect(path) as conn, conn:
+        cursor = conn.execute(
+            "INSERT INTO alerts (created_at, kind, feature_id, score, details)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (timestamp, kind, feature_id, score, json.dumps(details)),
+        )
+    return cursor.lastrowid
+
+
+def list_alerts(limit: int = 50, path: Path | None = None) -> list[dict]:
+    """Return up to `limit` alerts, newest first, with details parsed from JSON."""
+    with _connect(path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM alerts ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [{**dict(row), "details": json.loads(row["details"])} for row in rows]

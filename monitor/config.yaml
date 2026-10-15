@@ -6,6 +6,8 @@
 window_size: 500
 # Normal windows score above the threshold about (100 - threshold_percentile)% of the time.
 threshold_percentile: 99
-# Random windows drawn from each half of normal_test (calibration half and check half).
+# Random windows drawn from each pool (calibration pool and check pool).
 calibration_windows: 1000
 seed: 0
+# How often the app's scheduled job scores the latest window_size requests.
+check_interval_seconds: 60

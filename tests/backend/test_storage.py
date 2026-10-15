@@ -122,3 +122,17 @@ def test_naive_timestamps_are_rejected(db) -> None:
     naive = datetime(2026, 10, 15)  # noqa: DTZ001 - deliberately naive
     with pytest.raises(ValueError):
         storage.feature_counts(naive, naive + timedelta(days=1))
+
+
+def test_alerts_round_trip_newest_first(db) -> None:
+    first = storage.save_alert("sae", 0.07, {"top": [1, 2]}, created_at=T0)
+    second = storage.save_alert("embedding", 0.04, {"top": []}, created_at=T0 + timedelta(1))
+
+    alerts = storage.list_alerts()
+
+    assert [a["id"] for a in alerts] == [second, first]
+    assert alerts[1]["kind"] == "sae"
+    assert alerts[1]["score"] == 0.07
+    assert alerts[1]["details"] == {"top": [1, 2]}
+    assert alerts[1]["feature_id"] is None
+    assert storage.list_alerts(limit=1)[0]["id"] == second

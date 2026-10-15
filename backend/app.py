@@ -1,7 +1,8 @@
 """HTTP API: answer prompts with GPT-2 Small and record each request's top SAE features.
 
 The model work sits behind an `Engine`, so tests can build the app with a fake one via
-`create_app` and never download GPT-2 or the SAE.
+`create_app` and never download GPT-2 or the SAE. A background scheduler runs the drift job
+(monitor/job.py) every check_interval_seconds and stores alerts that GET /alerts returns.
 """
 
 from __future__ import annotations
@@ -16,12 +17,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 import torch
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from backend import storage
+from monitor.config import load_config
 from monitor.extract import FeatureHit, extract_features
+from monitor.job import DriftJob, load_drift_job
 from monitor.model import MODEL_NAME, load_model_and_sae
 
 MAX_NEW_TOKENS = 40
@@ -107,14 +111,32 @@ class ChatResponse(BaseModel):
     top_features: list[FeatureOut]
 
 
-def create_app(load_engine: Callable[[], Engine]) -> FastAPI:
-    """Build the API; `load_engine` runs once at startup."""
+def create_app(
+    load_engine: Callable[[], Engine], load_job: Callable[[], DriftJob] | None = None
+) -> FastAPI:
+    """Build the API; `load_engine` and `load_job` run once at startup. No job, no scheduler."""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         storage.init_db()
         app.state.engine = await run_in_threadpool(load_engine)
+        app.state.scheduler = None
+        if load_job is not None:
+            job = await run_in_threadpool(load_job)
+            scheduler = BackgroundScheduler()
+            # One check at a time; if checks fall behind, run the missed ones once.
+            scheduler.add_job(
+                job.run,
+                "interval",
+                seconds=load_config().check_interval_seconds,
+                max_instances=1,
+                coalesce=True,
+            )
+            scheduler.start()
+            app.state.scheduler = scheduler
         yield
+        if app.state.scheduler is not None:
+            app.state.scheduler.shutdown(wait=False)
 
     app = FastAPI(title="Feature Monitor", lifespan=lifespan)
 
@@ -168,7 +190,11 @@ def create_app(load_engine: Callable[[], Engine]) -> FastAPI:
             "counts": dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)),
         }
 
+    @app.get("/alerts")
+    def alerts(limit: int = Query(50, ge=1, le=500)) -> list[dict]:
+        return storage.list_alerts(limit)
+
     return app
 
 
-app = create_app(GPT2Engine)
+app = create_app(GPT2Engine, load_drift_job)

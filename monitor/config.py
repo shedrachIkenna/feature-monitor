@@ -10,12 +10,13 @@ CONFIG_PATH = Path(__file__).resolve().with_name("config.yaml")
 
 @dataclass(frozen=True)
 class DriftConfig:
-    """Window size and threshold calibration settings."""
+    """Window size, threshold calibration and drift-check settings."""
 
     window_size: int
     threshold_percentile: float
     calibration_windows: int
     seed: int
+    check_interval_seconds: int
 
 
 def load_config(path: Path = CONFIG_PATH) -> DriftConfig:
@@ -27,4 +28,6 @@ def load_config(path: Path = CONFIG_PATH) -> DriftConfig:
         raise ValueError("threshold_percentile must be between 0 and 100")
     if config.calibration_windows <= 0:
         raise ValueError("calibration_windows must be positive")
+    if config.check_interval_seconds <= 0:
+        raise ValueError("check_interval_seconds must be positive")
     return config
