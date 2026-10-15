@@ -3,6 +3,7 @@ name = "feature-monitor"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "datasets>=5.1.0",
     "fastapi>=0.143.1",
     "sae-lens>=6.54.0",
     "torch>=2.14.1",

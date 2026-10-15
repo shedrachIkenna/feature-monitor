@@ -31,3 +31,5 @@ torch/
 
 # Generated local caches
 monitor/labels_cache.json
+# Generated traffic pools (recreate with: uv run python -m traffic.prepare_data)
+traffic/data/
