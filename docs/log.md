@@ -155,3 +155,9 @@ Labels now prefer the highest-scored Neuronpedia explanation, but only if its me
 On every feature checked, the first (gpt-3.5) explanation is unscored and the second (gpt-4o-mini) has two eleuther_fuzz scores. Pure "highest-scored" would have relabelled feature 23838 as "societal issues" (score 0.49), although its top output tokens are all question marks; the minimum keeps the question-mark label.
 Surprise: the two explanation sources disagreed on 13 of 14 cached features. The cache was cleared (old copy kept outside the repo) and the notebook re-run: 12 of 14 labels changed, counts and verdicts are unchanged, and the phrasing conclusion still holds because it rests on feature behaviour, not labels.
 Still open: whether the cache should record which rule chose each label, so a future rule change is detected automatically.
+
+## 2026-10-15
+Completed Milestone 1.4 (sanity check notebook): added a plain-words verdict cell to `eval/01_sanity_check.ipynb`. Layer 8 separates medical from coding prompts weakly (original set 2/4 enriched, Jaccard 0.214; matched set 1/0, Jaccard 0.429), and the cell proposes layers 4 and 11 with the change needed (make the layer a parameter in `monitor/model.py` and `monitor/labels.py`, and key the label cache by layer).
+Ran the notebook twice from a clean kernel: feature counts and overlap were identical both times; the study report's status table, section 5.4 and Part 9 now match.
+Surprise: the slowest extraction varied a lot between runs (0.3307 s, then 0.0503 s; medians 0.0179 s and 0.0174 s), so the verdict cell does not copy timings.
+Still open: the layer 4 and 11 runs; whether the timing loop should make one untimed warm-up call first.

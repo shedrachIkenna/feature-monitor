@@ -1,8 +1,8 @@
 # Feature Monitor: Study Report
 
-Prepared 2026-10-11, last refreshed the same day after Milestone 1.1. Covers Milestone 0
-(scope and setup), Milestone 1.1 (load the model and SAE), the review fixes, and the
-supporting experiments.
+Prepared 2026-10-11, last refreshed 2026-10-15 after Milestone 1.4. Covers Milestone 0
+(scope and setup), Milestones 1.1 to 1.4 (model and SAE, extraction, labels, sanity check),
+the review fixes, and the supporting experiments.
 
 Every number in this report was either printed by code in this repository or measured
 again while writing it. Where something has not been tested, the report says so.
@@ -15,7 +15,10 @@ again while writing it. Where something has not been tested, the report says so.
 | | 0.2 Design document | Done |
 | | 0.3 README and project board | Done |
 | 1 Feature extraction | 1.1 Load the model and SAE | Done |
-| | Further items | Not yet given. Extraction, labels and the sanity check already exist in the code (Parts 3 and 5) |
+| | 1.2 Prompt to top features | Done |
+| | 1.3 Feature labels | Done |
+| | 1.4 Sanity check notebook | Done (verdict: weak separation at layer 8) |
+| | Further items | Not yet given |
 
 **How to read this.** Part 1 builds up the ideas from scratch. Part 2 explains the tools.
 Parts 3 to 6 walk through every file. Part 7 lists the problems found in the review and
@@ -544,7 +547,9 @@ prompts and 0/10 coding prompts.
   except 18171.
 - **Limits:** 20 prompts per set, one layer, hand-written prompts, labels that may be
   wrong. This is a quick check, not evidence of anything general.
-- **Still open:** repeat at layers 4 and 11.
+- **Next step, proposed in the notebook's final cell:** repeat at layers 4 and 11. This
+  needs the layer, now fixed at 8 in `monitor/model.py` (`SAE_ID`) and `monitor/labels.py`
+  (`SOURCE_ID`), to become a parameter, with the label cache keyed by layer. Not run yet.
 
 ---
 
@@ -645,7 +650,7 @@ All 10 are resolved.
   checked against what already exists, because extraction and labels are already built.
 - **Open questions** (from the log): which drift test to use, and whether the
   whole-distribution topic signal is stronger than the common-feature check suggests;
-  layers 4 and 11.
+  layers 4 and 11 (the change needed is in section 5.4).
 - **Optional upstream contributions:** test SAELens PR #739; open an issue about warning 2.
 - **When CI is set up:** run `ruff format --check` as well as `ruff check`, and cache the
   model downloads.
