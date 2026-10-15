@@ -1,0 +1,496 @@
+{
+ "config": {
+  "window_size": 500,
+  "threshold_percentile": 99,
+  "calibration_windows": 1000,
+  "seed": 0
+ },
+ "seeds": [
+  {
+   "window_size": 100,
+   "seed": 0,
+   "threshold": 0.16457095010912037,
+   "check_exceed_rate": 0.008
+  },
+  {
+   "window_size": 100,
+   "seed": 1,
+   "threshold": 0.16166013332018514,
+   "check_exceed_rate": 0.014
+  },
+  {
+   "window_size": 100,
+   "seed": 2,
+   "threshold": 0.16213121933610916,
+   "check_exceed_rate": 0.02
+  },
+  {
+   "window_size": 100,
+   "seed": 3,
+   "threshold": 0.16229795159927,
+   "check_exceed_rate": 0.016
+  },
+  {
+   "window_size": 100,
+   "seed": 4,
+   "threshold": 0.16491209530065143,
+   "check_exceed_rate": 0.006
+  },
+  {
+   "window_size": 100,
+   "seed": 5,
+   "threshold": 0.16320076980803852,
+   "check_exceed_rate": 0.012
+  },
+  {
+   "window_size": 100,
+   "seed": 6,
+   "threshold": 0.16184359474868906,
+   "check_exceed_rate": 0.013
+  },
+  {
+   "window_size": 100,
+   "seed": 7,
+   "threshold": 0.16565237735196983,
+   "check_exceed_rate": 0.0
+  },
+  {
+   "window_size": 100,
+   "seed": 8,
+   "threshold": 0.16502899917020825,
+   "check_exceed_rate": 0.007
+  },
+  {
+   "window_size": 100,
+   "seed": 9,
+   "threshold": 0.16181175429388397,
+   "check_exceed_rate": 0.025
+  },
+  {
+   "window_size": 100,
+   "seed": 10,
+   "threshold": 0.16174846300385726,
+   "check_exceed_rate": 0.016
+  },
+  {
+   "window_size": 100,
+   "seed": 11,
+   "threshold": 0.16238113663514925,
+   "check_exceed_rate": 0.01
+  },
+  {
+   "window_size": 100,
+   "seed": 12,
+   "threshold": 0.16357145406271956,
+   "check_exceed_rate": 0.008
+  },
+  {
+   "window_size": 100,
+   "seed": 13,
+   "threshold": 0.1625316510521794,
+   "check_exceed_rate": 0.008
+  },
+  {
+   "window_size": 100,
+   "seed": 14,
+   "threshold": 0.16338441186152425,
+   "check_exceed_rate": 0.006
+  },
+  {
+   "window_size": 100,
+   "seed": 15,
+   "threshold": 0.16174525185409677,
+   "check_exceed_rate": 0.021
+  },
+  {
+   "window_size": 100,
+   "seed": 16,
+   "threshold": 0.16258294508275203,
+   "check_exceed_rate": 0.007
+  },
+  {
+   "window_size": 100,
+   "seed": 17,
+   "threshold": 0.15979834423779354,
+   "check_exceed_rate": 0.032
+  },
+  {
+   "window_size": 100,
+   "seed": 18,
+   "threshold": 0.16372933926627362,
+   "check_exceed_rate": 0.004
+  },
+  {
+   "window_size": 100,
+   "seed": 19,
+   "threshold": 0.16522773704502577,
+   "check_exceed_rate": 0.002
+  },
+  {
+   "window_size": 250,
+   "seed": 0,
+   "threshold": 0.09076821235248561,
+   "check_exceed_rate": 0.026
+  },
+  {
+   "window_size": 250,
+   "seed": 1,
+   "threshold": 0.09079416809389149,
+   "check_exceed_rate": 0.022
+  },
+  {
+   "window_size": 250,
+   "seed": 2,
+   "threshold": 0.09119579631365778,
+   "check_exceed_rate": 0.01
+  },
+  {
+   "window_size": 250,
+   "seed": 3,
+   "threshold": 0.09183781530162531,
+   "check_exceed_rate": 0.008
+  },
+  {
+   "window_size": 250,
+   "seed": 4,
+   "threshold": 0.0930256854426122,
+   "check_exceed_rate": 0.002
+  },
+  {
+   "window_size": 250,
+   "seed": 5,
+   "threshold": 0.09116560067779185,
+   "check_exceed_rate": 0.013
+  },
+  {
+   "window_size": 250,
+   "seed": 6,
+   "threshold": 0.09116252103061452,
+   "check_exceed_rate": 0.01
+  },
+  {
+   "window_size": 250,
+   "seed": 7,
+   "threshold": 0.09300202367704213,
+   "check_exceed_rate": 0.0
+  },
+  {
+   "window_size": 250,
+   "seed": 8,
+   "threshold": 0.09193455833126214,
+   "check_exceed_rate": 0.01
+  },
+  {
+   "window_size": 250,
+   "seed": 9,
+   "threshold": 0.0910447878812248,
+   "check_exceed_rate": 0.029
+  },
+  {
+   "window_size": 250,
+   "seed": 10,
+   "threshold": 0.09157479971393133,
+   "check_exceed_rate": 0.011
+  },
+  {
+   "window_size": 250,
+   "seed": 11,
+   "threshold": 0.09118859332426903,
+   "check_exceed_rate": 0.02
+  },
+  {
+   "window_size": 250,
+   "seed": 12,
+   "threshold": 0.09106830498941097,
+   "check_exceed_rate": 0.008
+  },
+  {
+   "window_size": 250,
+   "seed": 13,
+   "threshold": 0.09128468736174195,
+   "check_exceed_rate": 0.01
+  },
+  {
+   "window_size": 250,
+   "seed": 14,
+   "threshold": 0.09186791792784972,
+   "check_exceed_rate": 0.005
+  },
+  {
+   "window_size": 250,
+   "seed": 15,
+   "threshold": 0.09076058986288031,
+   "check_exceed_rate": 0.025
+  },
+  {
+   "window_size": 250,
+   "seed": 16,
+   "threshold": 0.09148394346047187,
+   "check_exceed_rate": 0.014
+  },
+  {
+   "window_size": 250,
+   "seed": 17,
+   "threshold": 0.09100022404649036,
+   "check_exceed_rate": 0.039
+  },
+  {
+   "window_size": 250,
+   "seed": 18,
+   "threshold": 0.09287517613440177,
+   "check_exceed_rate": 0.002
+  },
+  {
+   "window_size": 250,
+   "seed": 19,
+   "threshold": 0.0910497306817075,
+   "check_exceed_rate": 0.015
+  },
+  {
+   "window_size": 500,
+   "seed": 0,
+   "threshold": 0.05909399393090205,
+   "check_exceed_rate": 0.011
+  },
+  {
+   "window_size": 500,
+   "seed": 1,
+   "threshold": 0.05857062797436233,
+   "check_exceed_rate": 0.024
+  },
+  {
+   "window_size": 500,
+   "seed": 2,
+   "threshold": 0.05847402578245739,
+   "check_exceed_rate": 0.023
+  },
+  {
+   "window_size": 500,
+   "seed": 3,
+   "threshold": 0.058982177903605326,
+   "check_exceed_rate": 0.015
+  },
+  {
+   "window_size": 500,
+   "seed": 4,
+   "threshold": 0.0601627108590955,
+   "check_exceed_rate": 0.0
+  },
+  {
+   "window_size": 500,
+   "seed": 5,
+   "threshold": 0.059385570349758304,
+   "check_exceed_rate": 0.005
+  },
+  {
+   "window_size": 500,
+   "seed": 6,
+   "threshold": 0.059009141703678936,
+   "check_exceed_rate": 0.009
+  },
+  {
+   "window_size": 500,
+   "seed": 7,
+   "threshold": 0.06002716082399808,
+   "check_exceed_rate": 0.001
+  },
+  {
+   "window_size": 500,
+   "seed": 8,
+   "threshold": 0.05899598862828358,
+   "check_exceed_rate": 0.013
+  },
+  {
+   "window_size": 500,
+   "seed": 9,
+   "threshold": 0.0580750471015847,
+   "check_exceed_rate": 0.082
+  },
+  {
+   "window_size": 500,
+   "seed": 10,
+   "threshold": 0.05941854975878406,
+   "check_exceed_rate": 0.005
+  },
+  {
+   "window_size": 500,
+   "seed": 11,
+   "threshold": 0.058943927002692714,
+   "check_exceed_rate": 0.026
+  },
+  {
+   "window_size": 500,
+   "seed": 12,
+   "threshold": 0.0593744869707757,
+   "check_exceed_rate": 0.005
+  },
+  {
+   "window_size": 500,
+   "seed": 13,
+   "threshold": 0.059453637727155624,
+   "check_exceed_rate": 0.002
+  },
+  {
+   "window_size": 500,
+   "seed": 14,
+   "threshold": 0.05994837285392568,
+   "check_exceed_rate": 0.002
+  },
+  {
+   "window_size": 500,
+   "seed": 15,
+   "threshold": 0.05842604384481133,
+   "check_exceed_rate": 0.045
+  },
+  {
+   "window_size": 500,
+   "seed": 16,
+   "threshold": 0.058383738786774324,
+   "check_exceed_rate": 0.049
+  },
+  {
+   "window_size": 500,
+   "seed": 17,
+   "threshold": 0.05888301454916616,
+   "check_exceed_rate": 0.017
+  },
+  {
+   "window_size": 500,
+   "seed": 18,
+   "threshold": 0.05951115062586887,
+   "check_exceed_rate": 0.003
+  },
+  {
+   "window_size": 500,
+   "seed": 19,
+   "threshold": 0.058785975309309964,
+   "check_exceed_rate": 0.027
+  },
+  {
+   "window_size": 1000,
+   "seed": 0,
+   "threshold": 0.03892924183496461,
+   "check_exceed_rate": 0.008
+  },
+  {
+   "window_size": 1000,
+   "seed": 1,
+   "threshold": 0.03847452327146858,
+   "check_exceed_rate": 0.04
+  },
+  {
+   "window_size": 1000,
+   "seed": 2,
+   "threshold": 0.038739468989600595,
+   "check_exceed_rate": 0.021
+  },
+  {
+   "window_size": 1000,
+   "seed": 3,
+   "threshold": 0.03870590846490705,
+   "check_exceed_rate": 0.03
+  },
+  {
+   "window_size": 1000,
+   "seed": 4,
+   "threshold": 0.03968170826766068,
+   "check_exceed_rate": 0.002
+  },
+  {
+   "window_size": 1000,
+   "seed": 5,
+   "threshold": 0.038807394262945494,
+   "check_exceed_rate": 0.004
+  },
+  {
+   "window_size": 1000,
+   "seed": 6,
+   "threshold": 0.03855003818570361,
+   "check_exceed_rate": 0.018
+  },
+  {
+   "window_size": 1000,
+   "seed": 7,
+   "threshold": 0.040107759103437245,
+   "check_exceed_rate": 0.0
+  },
+  {
+   "window_size": 1000,
+   "seed": 8,
+   "threshold": 0.03900509974910438,
+   "check_exceed_rate": 0.007
+  },
+  {
+   "window_size": 1000,
+   "seed": 9,
+   "threshold": 0.037863609252575064,
+   "check_exceed_rate": 0.302
+  },
+  {
+   "window_size": 1000,
+   "seed": 10,
+   "threshold": 0.03896014178489787,
+   "check_exceed_rate": 0.009
+  },
+  {
+   "window_size": 1000,
+   "seed": 11,
+   "threshold": 0.038370805371235994,
+   "check_exceed_rate": 0.071
+  },
+  {
+   "window_size": 1000,
+   "seed": 12,
+   "threshold": 0.038988181443956826,
+   "check_exceed_rate": 0.005
+  },
+  {
+   "window_size": 1000,
+   "seed": 13,
+   "threshold": 0.039089316911708034,
+   "check_exceed_rate": 0.003
+  },
+  {
+   "window_size": 1000,
+   "seed": 14,
+   "threshold": 0.03940153496074582,
+   "check_exceed_rate": 0.001
+  },
+  {
+   "window_size": 1000,
+   "seed": 15,
+   "threshold": 0.038286919669223186,
+   "check_exceed_rate": 0.071
+  },
+  {
+   "window_size": 1000,
+   "seed": 16,
+   "threshold": 0.03832276858207969,
+   "check_exceed_rate": 0.111
+  },
+  {
+   "window_size": 1000,
+   "seed": 17,
+   "threshold": 0.038626673921471885,
+   "check_exceed_rate": 0.06
+  },
+  {
+   "window_size": 1000,
+   "seed": 18,
+   "threshold": 0.03956643648620087,
+   "check_exceed_rate": 0.0
+  },
+  {
+   "window_size": 1000,
+   "seed": 19,
+   "threshold": 0.03847004435416176,
+   "check_exceed_rate": 0.076
+  }
+ ],
+ "swap_exceed_rate": {
+  "100": 0.004,
+  "250": 0.008,
+  "500": 0.006,
+  "1000": 0.009
+ }
+}
