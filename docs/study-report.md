@@ -549,7 +549,8 @@ prompts and 0/10 coding prompts.
   wrong. This is a quick check, not evidence of anything general.
 - **Next step, proposed in the notebook's final cell:** repeat at layers 4 and 11. This
   needs the layer, now fixed at 8 in `monitor/model.py` (`SAE_ID`) and `monitor/labels.py`
-  (`SOURCE_ID`), to become a parameter, with the label cache keyed by layer. Not run yet.
+  (`SOURCE_ID`), to become a parameter, with the label cache keyed by layer. Deferred on
+  2026-10-15 in favour of the next milestone; layer 8 stays for now.
 
 ---
 

@@ -161,3 +161,8 @@ Completed Milestone 1.4 (sanity check notebook): added a plain-words verdict cel
 Ran the notebook twice from a clean kernel: feature counts and overlap were identical both times; the study report's status table, section 5.4 and Part 9 now match.
 Surprise: the slowest extraction varied a lot between runs (0.3307 s, then 0.0503 s; medians 0.0179 s and 0.0174 s), so the verdict cell does not copy timings.
 Still open: the layer 4 and 11 runs; whether the timing loop should make one untimed warm-up call first.
+
+## 2026-10-15
+Deferred the layer side quest by decision: layer 8 stays the monitored layer for now, and the next milestone takes priority.
+Parked, in order: (1) make the layer a parameter in `monitor/model.py` and `monitor/labels.py`, with the label cache keyed by layer; (2) add an untimed warm-up call to the notebook's timing loop; (3) re-run the sanity check at layers 4 and 11 with a "better" criterion fixed beforehand (a stronger verdict on the matched set).
+Still open: these three items, and the drift-test choice, which the layer results would inform.
