@@ -40,14 +40,15 @@ def test_no_check_until_the_window_is_full(db) -> None:
     assert storage.list_alerts() == []
 
 
-def test_normal_window_raises_no_alert_but_records_the_check(db) -> None:
+def test_normal_window_raises_no_alert_but_stores_the_check(db) -> None:
     add(NORMAL, WINDOW)
     job = DriftJob([detector()], WINDOW)
 
     assert job.run() == []
-    [check] = job.checks
-    assert check["last_request_id"] == WINDOW
-    assert check["scores"]["sae"] == pytest.approx(0.0)
+    [check] = storage.list_drift_checks()
+    assert (check["kind"], check["threshold"], check["window_size"]) == ("sae", 0.1, WINDOW)
+    assert (check["first_request_id"], check["last_request_id"]) == (1, WINDOW)
+    assert check["score"] == pytest.approx(0.0)
 
 
 def test_shifted_window_raises_alert_with_top_five(db) -> None:
@@ -58,7 +59,9 @@ def test_shifted_window_raises_alert_with_top_five(db) -> None:
     [alert_id] = job.run()
 
     [alert] = storage.list_alerts()
+    [check] = storage.list_drift_checks()
     assert alert["id"] == alert_id
+    assert alert["score"] == check["score"]
     assert alert["kind"] == "sae"
     assert alert["score"] > 0.1
     details = alert["details"]
@@ -78,7 +81,7 @@ def test_same_window_is_not_checked_twice(db) -> None:
     assert job.run() == []
     add(SHIFTED, 1)
     assert len(job.run()) == 1
-    assert [c["last_request_id"] for c in job.checks] == [WINDOW, WINDOW + 1]
+    assert [c["last_request_id"] for c in storage.list_drift_checks()] == [WINDOW, WINDOW + 1]
 
 
 def test_example_prompts_describe_a_cluster() -> None:

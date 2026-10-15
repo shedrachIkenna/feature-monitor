@@ -15,10 +15,13 @@ def test_summarise_maps_alerts_to_request_numbers_and_shift_share() -> None:
     # Request ids 11..20 are scenario requests 1..10; the last four are shifted.
     rows = [{"request_id": 11 + i, "index": i, "is_shift": i >= 6} for i in range(10)]
     job = DriftJob([detector("sae"), detector("embedding")], window_size=4)
-    job.checks.append({"last_request_id": 18, "scores": {"sae": 0.2, "embedding": 0.05}})
+    checks = [
+        {"last_request_id": 18, "kind": "sae", "score": 0.2},
+        {"last_request_id": 18, "kind": "embedding", "score": 0.05},
+    ]
     alerts = [alert("sae", 17, 20, 0.3), alert("sae", 15, 18, 0.2)]
 
-    summary = summarise(rows, job, alerts)
+    summary = summarise(rows, job, checks, alerts)
 
     assert summary["checks"] == [{"request_number": 8, "scores": {"sae": 0.2, "embedding": 0.05}}]
     sae = summary["detectors"]["sae"]

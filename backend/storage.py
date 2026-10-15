@@ -1,4 +1,4 @@
-"""SQLite storage for monitored requests, their SAE feature hits, and drift alerts.
+"""SQLite storage for monitored requests, their SAE feature hits, drift checks and alerts.
 
 Hits live in their own table, one row per (request, feature), instead of a JSON column on
 `requests`. The drift job asks "in how many requests did feature X appear in this window?";
@@ -54,9 +54,22 @@ CREATE TABLE IF NOT EXISTS alerts (
     score REAL NOT NULL,
     details TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS drift_checks (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    score REAL NOT NULL,
+    threshold REAL NOT NULL,
+    window_size INTEGER NOT NULL,
+    first_request_id INTEGER NOT NULL,
+    last_request_id INTEGER NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_requests_created_at ON requests(created_at);
 CREATE INDEX IF NOT EXISTS idx_feature_hits_feature_id ON feature_hits(feature_id);
+CREATE INDEX IF NOT EXISTS idx_drift_checks_created_at ON drift_checks(created_at);
 """
+# Start of a request's time bucket, in Unix seconds: its timestamp rounded down to the bucket size.
+_BUCKET_SQL = "CAST(strftime('%s', r.created_at) AS INTEGER) / :size * :size"
 
 
 def db_path() -> Path:
@@ -197,3 +210,91 @@ def list_alerts(limit: int = 50, path: Path | None = None) -> list[dict]:
             "SELECT * FROM alerts ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)
         ).fetchall()
     return [{**dict(row), "details": json.loads(row["details"])} for row in rows]
+
+
+def save_drift_check(
+    kind: str,
+    score: float,
+    threshold: float,
+    window_size: int,
+    first_request_id: int,
+    last_request_id: int,
+    created_at: datetime | None = None,
+    path: Path | None = None,
+) -> int:
+    """Store one detector's score for one window, alert or not; return the check id."""
+    timestamp = format_timestamp(created_at or datetime.now(UTC))
+    with _connect(path) as conn, conn:
+        cursor = conn.execute(
+            "INSERT INTO drift_checks (created_at, kind, score, threshold, window_size,"
+            " first_request_id, last_request_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (timestamp, kind, score, threshold, window_size, first_request_id, last_request_id),
+        )
+    return cursor.lastrowid
+
+
+def list_drift_checks(
+    since: datetime | None = None, until: datetime | None = None, path: Path | None = None
+) -> list[dict]:
+    """Return checks in [since, until), oldest first; a missing bound means no limit."""
+    low = format_timestamp(since) if since else ""
+    high = format_timestamp(until) if until else "~"  # "~" sorts after every timestamp
+    with _connect(path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM drift_checks WHERE created_at >= ? AND created_at < ?"
+            " ORDER BY created_at, id",
+            (low, high),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def request_counts_by_bucket(
+    since: datetime, until: datetime, bucket_seconds: int, path: Path | None = None
+) -> dict[int, int]:
+    """Count requests in [since, until) per time bucket, keyed by bucket start in Unix seconds."""
+    with _connect(path) as conn:
+        rows = conn.execute(
+            f"SELECT {_BUCKET_SQL} AS bucket, COUNT(*) FROM requests r"
+            " WHERE r.created_at >= :since AND r.created_at < :until GROUP BY bucket",
+            {
+                "size": bucket_seconds,
+                "since": format_timestamp(since),
+                "until": format_timestamp(until),
+            },
+        ).fetchall()
+    return {bucket: count for bucket, count in rows}
+
+
+def feature_counts_by_bucket(
+    feature_id: int,
+    since: datetime,
+    until: datetime,
+    bucket_seconds: int,
+    path: Path | None = None,
+) -> dict[int, int]:
+    """Count requests in [since, until) with the feature among their hits, per time bucket."""
+    with _connect(path) as conn:
+        rows = conn.execute(
+            f"SELECT {_BUCKET_SQL} AS bucket, COUNT(DISTINCT r.id) FROM feature_hits h"
+            " JOIN requests r ON r.id = h.request_id WHERE h.feature_id = :feature"
+            " AND r.created_at >= :since AND r.created_at < :until GROUP BY bucket",
+            {
+                "size": bucket_seconds,
+                "feature": feature_id,
+                "since": format_timestamp(since),
+                "until": format_timestamp(until),
+            },
+        ).fetchall()
+    return {bucket: count for bucket, count in rows}
+
+
+def strong_hits(feature_id: int, max_rank: int, limit: int, path: Path | None = None) -> list[dict]:
+    """Return the newest requests where the feature ranked max_rank or better, newest first."""
+    with _connect(path) as conn:
+        rows = conn.execute(
+            "SELECT r.id AS request_id, r.created_at, r.prompt, h.activation, h.rank"
+            " FROM feature_hits h JOIN requests r ON r.id = h.request_id"
+            " WHERE h.feature_id = ? AND h.rank <= ? ORDER BY r.created_at DESC, r.id DESC LIMIT ?",
+            (feature_id, max_rank, limit),
+        ).fetchall()
+    return [dict(row) for row in rows]

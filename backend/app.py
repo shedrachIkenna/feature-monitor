@@ -2,7 +2,8 @@
 
 The model work sits behind an `Engine`, so tests can build the app with a fake one via
 `create_app` and never download GPT-2 or the SAE. A background scheduler runs the drift job
-(monitor/job.py) every check_interval_seconds and stores alerts that GET /alerts returns.
+(monitor/job.py) every check_interval_seconds and stores each check's scores and any alerts.
+The /dashboard endpoints (backend/dashboard.py) read those back for the frontend.
 """
 
 from __future__ import annotations
@@ -18,14 +19,14 @@ from typing import Protocol
 
 import torch
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Path, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from backend import storage
+from backend import dashboard, storage
 from monitor.config import load_config
 from monitor.extract import FeatureHit, extract_features
-from monitor.job import DriftJob, load_drift_job
+from monitor.job import Detector, DriftJob, load_drift_job
 from monitor.model import MODEL_NAME, load_model_and_sae
 
 MAX_NEW_TOKENS = 40
@@ -121,8 +122,10 @@ def create_app(
         storage.init_db()
         app.state.engine = await run_in_threadpool(load_engine)
         app.state.scheduler = None
+        app.state.job = None
         if load_job is not None:
             job = await run_in_threadpool(load_job)
+            app.state.job = job
             scheduler = BackgroundScheduler()
             # One check at a time. A check that starts late (the server is busy with a request)
             # still runs instead of being skipped, and several missed checks run once.
@@ -196,7 +199,34 @@ def create_app(
     def alerts(limit: int = Query(50, ge=1, le=500)) -> list[dict]:
         return storage.list_alerts(limit)
 
+    @app.get("/dashboard/timeline")
+    def dashboard_timeline(hours: int = Query(24, ge=1, le=168)) -> dict:
+        return dashboard.timeline(hours)
+
+    @app.get("/dashboard/drifting")
+    def dashboard_drifting(request: Request, limit: int = Query(10, ge=1, le=100)) -> dict:
+        job, detector = sae_detector(request)
+        return dashboard.drifting(job, detector, limit)
+
+    @app.get("/dashboard/feature/{feature_id}")
+    def dashboard_feature(
+        request: Request,
+        feature_id: int = Path(ge=0),
+        hours: int = Query(24, ge=1, le=168),
+    ) -> dict:
+        _, detector = sae_detector(request)
+        return dashboard.feature(feature_id, detector.describe(feature_id, [], []), hours)
+
     return app
+
+
+def sae_detector(request: Request) -> tuple[DriftJob, Detector]:
+    """The running drift job and its SAE detector; 503 when the app was built without them."""
+    job: DriftJob | None = request.app.state.job
+    detector = next((d for d in job.detectors if d.name == "sae"), None) if job else None
+    if job is None or detector is None:
+        raise HTTPException(503, "the SAE drift detector is not loaded")
+    return job, detector
 
 
 app = create_app(GPT2Engine, load_drift_job)

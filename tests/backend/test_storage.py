@@ -39,8 +39,12 @@ def test_init_db_is_idempotent(db) -> None:
     storage.init_db()
     with sqlite3.connect(db) as conn:
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master")}
-    assert {"requests", "feature_hits", "alerts"} <= tables
-    assert {"idx_requests_created_at", "idx_feature_hits_feature_id"} <= tables
+    assert {"requests", "feature_hits", "alerts", "drift_checks"} <= tables
+    assert {
+        "idx_requests_created_at",
+        "idx_feature_hits_feature_id",
+        "idx_drift_checks_created_at",
+    } <= tables
 
 
 def test_save_request_round_trips_with_ranks(db) -> None:
@@ -136,3 +140,50 @@ def test_alerts_round_trip_newest_first(db) -> None:
     assert alerts[1]["details"] == {"top": [1, 2]}
     assert alerts[1]["feature_id"] is None
     assert storage.list_alerts(limit=1)[0]["id"] == second
+
+
+def test_drift_checks_round_trip_oldest_first_within_bounds(db) -> None:
+    for minutes, score in [(5, 0.2), (0, 0.1), (10, 0.3)]:
+        storage.save_drift_check("sae", score, 0.06, 500, 1, 500, T0 + timedelta(minutes=minutes))
+
+    checks = storage.list_drift_checks()
+    assert [c["score"] for c in checks] == [0.1, 0.2, 0.3]
+    assert (checks[0]["kind"], checks[0]["threshold"], checks[0]["window_size"]) == (
+        "sae",
+        0.06,
+        500,
+    )
+    bounded = storage.list_drift_checks(T0, T0 + timedelta(minutes=10))  # half-open
+    assert [c["score"] for c in bounded] == [0.1, 0.2]
+    assert [c["score"] for c in storage.list_drift_checks(since=T0 + timedelta(minutes=1))] == [
+        0.2,
+        0.3,
+    ]
+
+
+def test_counts_by_bucket_round_down_to_bucket_start(db) -> None:
+    start = int(T0.timestamp())
+    save([FeatureHit(1, 1.0)], T0)
+    save([FeatureHit(1, 1.0), FeatureHit(2, 1.0)], T0 + timedelta(minutes=4, seconds=59))
+    save([FeatureHit(2, 1.0)], T0 + timedelta(minutes=5))
+    save([FeatureHit(1, 1.0)], T0 + timedelta(minutes=10))  # at until: excluded
+
+    until = T0 + timedelta(minutes=10)
+    assert storage.request_counts_by_bucket(T0, until, 300) == {start: 2, start + 300: 1}
+    assert storage.feature_counts_by_bucket(1, T0, until, 300) == {start: 2}
+    assert storage.feature_counts_by_bucket(2, T0, until, 300) == {start: 1, start + 300: 1}
+
+
+def test_strong_hits_keeps_top_ranks_newest_first(db) -> None:
+    save([FeatureHit(7, 3.0)], T0, prompt="old")
+    save([FeatureHit(1, 1.0), FeatureHit(7, 2.0)], T0 + timedelta(minutes=1), prompt="rank 2")
+    save([FeatureHit(1, 1.0), FeatureHit(2, 1.0), FeatureHit(7, 0.5)], T0 + timedelta(minutes=2))
+
+    hits = storage.strong_hits(7, max_rank=2, limit=5)
+
+    assert [(h["prompt"], h["rank"], h["activation"]) for h in hits] == [
+        ("rank 2", 2, 2.0),
+        ("old", 1, 3.0),
+    ]
+    assert hits[0]["created_at"] == "2026-10-15T12:01:00.000000Z"
+    assert [h["prompt"] for h in storage.strong_hits(7, max_rank=2, limit=1)] == ["rank 2"]

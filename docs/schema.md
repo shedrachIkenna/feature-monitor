@@ -15,6 +15,12 @@ an optional `scenario` tag, and `gen_ms`/`extract_ms` timings. Indexed on `creat
 and `details` as JSON text. Written by the drift job (`monitor/job.py`) with `save_alert`;
 read by `GET /alerts` through `list_alerts`.
 
+**drift_checks**: one row per detector per drift check, alert or not: `created_at`, `kind`
+(`sae` or `embedding`), `score`, the `threshold` it was judged against, `window_size`, and the
+window's `first_request_id`/`last_request_id`. Written by the drift job with `save_drift_check`, so
+`GET /dashboard/timeline` is a cheap read of stored scores instead of rescoring windows. Indexed on
+`created_at`.
+
 ## Why hits have their own table
 
 The drift job asks "in how many requests did feature X appear in this window?". With one
@@ -26,6 +32,8 @@ let the database enforce one hit per rank per request.
 
 - Timestamps are stored as fixed-width UTC strings (`2026-10-15T12:00:00.000000Z`), so
   comparing them as text gives the same order as comparing them as times.
+- Dashboard buckets are 5-minute slots aligned to the UTC clock; SQLite rounds each
+  `created_at` down with `strftime('%s', ...)`.
 - Time windows are half-open, `[since, until)`, so back-to-back windows never count a
   request twice. `request_count` gives the denominator for feature frequencies.
 - Deployment: on a Hugging Face Space only `/data` survives restarts, and only when

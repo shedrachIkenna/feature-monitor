@@ -45,14 +45,14 @@ def wait_until(condition, timeout_s: float, what: str) -> None:
         time.sleep(1)
 
 
-def summarise(rows: list[dict], job: DriftJob, alerts: list[dict]) -> dict:
+def summarise(rows: list[dict], job: DriftJob, checks: list[dict], alerts: list[dict]) -> dict:
     """Per detector: alert count and the first alert's request number, shift share and top 5."""
     number_of = {r["request_id"]: r["index"] + 1 for r in rows}
     shift_of = {r["request_id"]: r["is_shift"] for r in rows}
-    checks = [
-        {"request_number": number_of[c["last_request_id"]], "scores": c["scores"]}
-        for c in job.checks
-    ]
+    # Stored checks hold one row per detector; group them by the window they scored.
+    scores: dict[int, dict[str, float]] = {}
+    for c in checks:
+        scores.setdefault(c["last_request_id"], {})[c["kind"]] = c["score"]
     detectors = {}
     for detector in job.detectors:
         mine = sorted(
@@ -82,7 +82,10 @@ def summarise(rows: list[dict], job: DriftJob, alerts: list[dict]) -> dict:
             ),
             "first_alert_top": first["details"]["top"] if first else None,
         }
-    return {"checks": checks, "detectors": detectors}
+    return {
+        "checks": [{"request_number": number_of[i], "scores": s} for i, s in scores.items()],
+        "detectors": detectors,
+    }
 
 
 def run_scenario(name: str) -> dict:
@@ -110,8 +113,13 @@ def run_scenario(name: str) -> dict:
         if failed:
             raise RuntimeError(f"{name}: {failed} requests failed")
         last_id = rows[-1]["request_id"]
+
+        def final_check_done() -> bool:
+            checks = storage.list_drift_checks(path=db)
+            return bool(checks) and checks[-1]["last_request_id"] == last_id
+
         wait_until(
-            lambda: job.checks and job.checks[-1]["last_request_id"] == last_id,
+            final_check_done,
             FINAL_CHECK_TIMEOUT_S,
             "the final check",
         )
@@ -124,7 +132,7 @@ def run_scenario(name: str) -> dict:
         "scenario": name,
         "requests": len(rows),
         "minutes": round((time.monotonic() - start) / 60, 1),
-        **summarise(rows, job, alerts),
+        **summarise(rows, job, storage.list_drift_checks(path=db), alerts),
     }
 
 

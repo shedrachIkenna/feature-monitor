@@ -7,7 +7,7 @@ per-ID ranking of what drifted (feature_drift). The window is the latest window_
 because each threshold is only valid for the window size it was calibrated with.
 """
 
-from collections import Counter, deque
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from itertools import chain
@@ -17,13 +17,11 @@ from backend import storage
 from monitor.baseline import baseline_path, load_baseline
 from monitor.calibrate import load_threshold, threshold_path
 from monitor.config import load_config
-from monitor.drift import feature_drift, score_window
+from monitor.drift import FeatureDrift, feature_drift, score_window
 from monitor.embed_drift import assign_clusters, embed_baseline_path, embed_prompts, load_centroids
 from monitor.labels import get_label
 
 TOP_N = 5
-# Recent checks kept in memory (about 17 hours at one check a minute).
-CHECK_HISTORY = 1000
 EXAMPLES_PER_CLUSTER = 2
 EXAMPLE_CHARS = 120
 
@@ -44,12 +42,19 @@ class Detector:
     describe: Describe
 
 
-def top_drifting(
-    detector: Detector, requests: Sequence[dict], sets: Sequence[Sequence[int]], n: int = TOP_N
-) -> list[dict]:
-    """Rank the window's IDs with the per-ID drift test and describe the top n."""
+def rank_drift(detector: Detector, sets: Sequence[Sequence[int]]) -> list[FeatureDrift]:
+    """Run the per-ID drift test on a window's ID lists, most significant change first."""
     window_counts = Counter(chain.from_iterable(sets))
-    ranked = feature_drift(detector.baseline_counts, detector.baseline_n, window_counts, len(sets))
+    return feature_drift(detector.baseline_counts, detector.baseline_n, window_counts, len(sets))
+
+
+def describe_drift(
+    detector: Detector,
+    drifts: Sequence[FeatureDrift],
+    requests: Sequence[dict],
+    sets: Sequence[Sequence[int]],
+) -> list[dict]:
+    """Turn drift results into JSON-ready dicts with each ID's description."""
     return [
         {
             "id": d.feature_id,
@@ -59,8 +64,15 @@ def top_drifting(
             "ratio": d.ratio,
             "adjusted_p": d.adjusted_p,
         }
-        for d in ranked[:n]
+        for d in drifts
     ]
+
+
+def top_drifting(
+    detector: Detector, requests: Sequence[dict], sets: Sequence[Sequence[int]], n: int = TOP_N
+) -> list[dict]:
+    """Rank the window's IDs with the per-ID drift test and describe the top n."""
+    return describe_drift(detector, rank_drift(detector, sets)[:n], requests, sets)
 
 
 class DriftJob:
@@ -73,8 +85,6 @@ class DriftJob:
         self.window_size = window_size
         self.path = path
         self.last_checked_id: int | None = None
-        # Every check's scores, alert or not, so a quiet run can be told apart from no checks.
-        self.checks: deque[dict] = deque(maxlen=CHECK_HISTORY)
 
     def latest_window(self) -> list[dict]:
         """Return the latest window_size requests, oldest first, with their feature IDs."""
@@ -90,29 +100,39 @@ class DriftJob:
         ]
 
     def run(self) -> list[int]:
-        """Score the latest full window with every detector; return the ids of new alerts."""
+        """Score the latest full window with every detector, store each score, return new alerts.
+
+        Every score is stored, alert or not, so a quiet run can be told apart from no checks.
+        """
         requests = self.latest_window()
         if len(requests) < self.window_size or requests[-1]["id"] == self.last_checked_id:
             return []
         self.last_checked_id = requests[-1]["id"]
 
+        first_id, last_id = requests[0]["id"], requests[-1]["id"]
         alert_ids = []
-        scores = {}
         for detector in self.detectors:
             sets = detector.to_sets(requests)
             score = score_window(detector.baseline_counts, sets)
-            scores[detector.name] = score
+            storage.save_drift_check(
+                detector.name,
+                score,
+                detector.threshold,
+                self.window_size,
+                first_id,
+                last_id,
+                path=self.path,
+            )
             if score <= detector.threshold:
                 continue
             details = {
                 "threshold": detector.threshold,
                 "window_size": self.window_size,
-                "first_request_id": requests[0]["id"],
-                "last_request_id": requests[-1]["id"],
+                "first_request_id": first_id,
+                "last_request_id": last_id,
                 "top": top_drifting(detector, requests, sets),
             }
             alert_ids.append(storage.save_alert(detector.name, score, details, path=self.path))
-        self.checks.append({"last_request_id": requests[-1]["id"], "scores": scores})
         return alert_ids
 
 
