@@ -34,3 +34,6 @@ monitor/labels_cache.json
 # Generated traffic pools (recreate with: uv run python -m traffic.prepare_data)
 traffic/data/
 traffic/runs/
+
+# Per-prompt features for threshold calibration (recreate with: uv run python -m monitor.calibrate)
+monitor/baselines/*_features.json

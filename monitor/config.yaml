@@ -1,0 +1,11 @@
+# Drift detection settings.
+# The saved threshold is only valid for the window_size it was calibrated with: after changing
+# window_size, rerun `uv run python -m monitor.calibrate`.
+
+# Requests per window. Smaller reacts sooner but is noisier; larger is steadier but slower.
+window_size: 500
+# Normal windows score above the threshold about (100 - threshold_percentile)% of the time.
+threshold_percentile: 99
+# Random windows drawn from each half of normal_test (calibration half and check half).
+calibration_windows: 1000
+seed: 0

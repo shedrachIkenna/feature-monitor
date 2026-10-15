@@ -3,12 +3,17 @@
 Each feature is tested with a two-sided, two-proportion z-test on raw counts. Because thousands of
 features are tested at once, p-values are adjusted with Benjamini-Hochberg, which controls the
 false discovery rate: the expected fraction of flagged features that are false alarms.
+
+The whole window also gets one overall score: the Jensen-Shannon divergence between the baseline's
+and the window's feature distributions (each feature's share of all top-k slots).
 """
 
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import numpy as np
+from scipy.spatial.distance import jensenshannon
 from scipy.stats import false_discovery_control, norm
 
 MIN_COUNT = 5
@@ -73,3 +78,23 @@ def feature_drift(
         )
     results.sort(key=lambda r: (r.adjusted_p, -abs(math.log(r.ratio)), r.feature_id))
     return results
+
+
+def to_distribution(counts: Mapping[int, int], feature_ids: Sequence[int]) -> np.ndarray:
+    """Each feature's share of the total count, in feature_ids order; missing features get 0."""
+    values = np.array([counts.get(f, 0) for f in feature_ids], dtype=float)
+    if (values < 0).any():
+        raise ValueError("counts must be non-negative")
+    total = values.sum()
+    if total <= 0:
+        raise ValueError("counts must have a positive total")
+    return values / total
+
+
+def js_divergence(baseline_counts: Mapping[int, int], window_counts: Mapping[int, int]) -> float:
+    """Jensen-Shannon divergence in bits: 0 for identical distributions, 1 for disjoint ones."""
+    feature_ids = sorted(set(baseline_counts) | set(window_counts))
+    p = to_distribution(baseline_counts, feature_ids)
+    q = to_distribution(window_counts, feature_ids)
+    # scipy returns the Jensen-Shannon distance, the square root of the divergence.
+    return float(jensenshannon(p, q, base=2) ** 2)

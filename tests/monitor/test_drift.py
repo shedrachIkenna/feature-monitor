@@ -1,8 +1,9 @@
 import math
 
 import numpy as np
+import pytest
 
-from monitor.drift import feature_drift, smoothed_rate
+from monitor.drift import feature_drift, js_divergence, smoothed_rate, to_distribution
 
 N = 3000
 N_FEATURES = 2000
@@ -61,3 +62,32 @@ def test_features_below_min_count_on_both_sides_are_skipped() -> None:
     results = feature_drift({1: 4, 2: 5}, 1000, {1: 4, 3: 6}, 1000, min_count=5)
 
     assert sorted(r.feature_id for r in results) == [2, 3]
+
+
+def test_to_distribution_sums_to_one_in_given_order() -> None:
+    dist = to_distribution({1: 3, 2: 1}, [2, 1, 9])
+
+    assert dist.tolist() == [0.25, 0.75, 0.0]
+
+
+def test_to_distribution_rejects_empty_counts() -> None:
+    with pytest.raises(ValueError):
+        to_distribution({}, [1])
+
+
+def test_js_divergence_is_zero_for_same_shape_at_any_size() -> None:
+    assert js_divergence({1: 10, 2: 30}, {1: 1, 2: 3}) == pytest.approx(0.0, abs=1e-12)
+
+
+def test_js_divergence_is_one_for_disjoint_features() -> None:
+    assert js_divergence({1: 5, 2: 5}, {3: 7}) == pytest.approx(1.0)
+
+
+def test_js_divergence_is_symmetric_and_finite_for_new_features() -> None:
+    baseline = {1: 50, 2: 30, 3: 20}
+    window = {1: 40, 2: 30, 4: 30}
+
+    score = js_divergence(baseline, window)
+
+    assert 0 < score < 1
+    assert score == pytest.approx(js_divergence(window, baseline))
