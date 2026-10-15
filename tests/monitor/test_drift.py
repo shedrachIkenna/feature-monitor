@@ -3,7 +3,13 @@ import math
 import numpy as np
 import pytest
 
-from monitor.drift import feature_drift, js_divergence, smoothed_rate, to_distribution
+from monitor.drift import (
+    feature_drift,
+    js_divergence,
+    score_window,
+    smoothed_rate,
+    to_distribution,
+)
 
 N = 3000
 N_FEATURES = 2000
@@ -91,3 +97,10 @@ def test_js_divergence_is_symmetric_and_finite_for_new_features() -> None:
 
     assert 0 < score < 1
     assert score == pytest.approx(js_divergence(window, baseline))
+
+
+def test_score_window_pools_each_prompts_ids() -> None:
+    baseline = {1: 10, 2: 5}
+    window = [[1, 2], [1], [3]]
+
+    assert score_window(baseline, window) == js_divergence(baseline, {1: 2, 2: 1, 3: 1})

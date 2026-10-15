@@ -37,3 +37,5 @@ traffic/runs/
 
 # Per-prompt features for threshold calibration (recreate with: uv run python -m monitor.calibrate)
 monitor/baselines/*_features.json
+# Prompt embeddings for the embedding detector (recreate with: uv run python -m monitor.embed_drift)
+monitor/baselines/*_embeddings.npy

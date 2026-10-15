@@ -1,0 +1,14 @@
+{
+ "threshold": 0.03376129540497396,
+ "window_size": 500,
+ "percentile": 99,
+ "calibration_windows": 1000,
+ "seed": 0,
+ "pool_sizes": {
+  "normal_train_unused": 11017,
+  "normal_test": 6008
+ },
+ "check_exceed_rate": 0.01,
+ "baseline_created": "2026-10-15T17:57:47+00:00",
+ "created": "2026-10-15T17:57:47+00:00"
+}

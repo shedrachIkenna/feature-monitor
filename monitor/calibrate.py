@@ -11,10 +11,8 @@ Run with: uv run python -m monitor.calibrate
 """
 
 import json
-from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from itertools import chain
 from pathlib import Path
 
 import numpy as np
@@ -28,7 +26,7 @@ from monitor.baseline import (
     sample_prompts,
 )
 from monitor.config import DriftConfig, load_config
-from monitor.drift import js_divergence
+from monitor.drift import score_window
 from monitor.extract import extract_features
 
 CALIBRATION_POOL = "normal_train_unused"
@@ -79,8 +77,7 @@ def window_scores(
     scores = np.empty(n_windows)
     for i in range(n_windows):
         chosen = rng.choice(indices, size=window_size, replace=False)
-        counts = Counter(chain.from_iterable(feature_sets[j] for j in chosen))
-        scores[i] = js_divergence(baseline_counts, counts)
+        scores[i] = score_window(baseline_counts, (feature_sets[j] for j in chosen))
     return scores
 
 
@@ -113,6 +110,28 @@ def calibrate(
         "check_exceed_rate": float((check_scores > threshold).mean()),
         "calibration_scores": calibration_scores.tolist(),
         "check_scores": check_scores.tolist(),
+    }
+
+
+def calibrate_sizes(
+    calibration_sets: Sequence[Sequence[int]],
+    check_sets: Sequence[Sequence[int]],
+    baseline_counts: dict[int, int],
+    config: DriftConfig,
+) -> dict[int, dict]:
+    """Calibrate the configured window size and every sweep size, keyed by window size."""
+    sizes = sorted(set(SWEEP_SIZES) | {config.window_size})
+    return {
+        size: calibrate(
+            calibration_sets,
+            check_sets,
+            baseline_counts,
+            size,
+            config.threshold_percentile,
+            config.calibration_windows,
+            config.seed,
+        )
+        for size in sizes
     }
 
 
@@ -151,18 +170,33 @@ def load_threshold(path: Path, window_size: int, baseline_created: str) -> float
     return payload["threshold"]
 
 
-def load_pool_features(base_path: Path, baseline_metadata: dict) -> dict[str, list[list[int]]]:
-    """Return per-prompt features for the calibration and check pools, extracting if needed."""
+def print_sweep(results: dict[int, dict], configured_size: int) -> None:
+    """Print median score, threshold and check-pool exceed rate for each window size."""
+    print("window  median JSD  threshold  check-pool exceed rate")
+    for size, r in results.items():
+        marker = "  <- configured" if size == configured_size else ""
+        print(
+            f"{size:>6}  {np.median(r['calibration_scores']):10.4f}  {r['threshold']:9.4f}"
+            f"  {r['check_exceed_rate']:6.1%}{marker}"
+        )
+
+
+def pool_prompts(baseline_metadata: dict) -> dict[str, list[str]]:
+    """Return the calibration pool (train prompts outside the baseline) and the check pool."""
     train = read_pool(POOL_DIR / f"{baseline_metadata['pool']}.jsonl")
-    pools = {
+    return {
         CALIBRATION_POOL: unused_prompts(train, baseline_metadata),
         CHECK_POOL: read_pool(POOL_DIR / f"{CHECK_POOL}.jsonl"),
     }
+
+
+def load_pool_features(base_path: Path, baseline_metadata: dict) -> dict[str, list[list[int]]]:
+    """Return per-prompt features for the calibration and check pools, extracting if needed."""
     return {
         name: load_or_extract_features(
             prompts, features_cache_path(base_path, name), baseline_metadata["k"]
         )
-        for name, prompts in pools.items()
+        for name, prompts in pool_prompts(baseline_metadata).items()
     }
 
 
@@ -173,19 +207,9 @@ def main() -> None:
     metadata, baseline = load_baseline(base_path)
     features = load_pool_features(base_path, metadata)
 
-    sizes = sorted(set(SWEEP_SIZES) | {config.window_size})
-    results = {
-        size: calibrate(
-            features[CALIBRATION_POOL],
-            features[CHECK_POOL],
-            baseline["counts"],
-            size,
-            config.threshold_percentile,
-            config.calibration_windows,
-            config.seed,
-        )
-        for size in sizes
-    }
+    results = calibrate_sizes(
+        features[CALIBRATION_POOL], features[CHECK_POOL], baseline["counts"], config
+    )
 
     chosen = results[config.window_size]
     path = threshold_path(base_path)
@@ -204,13 +228,7 @@ def main() -> None:
     )
     print(f"Saved {path} and {RESULTS_PATH}")
     print(f"Pools: {pool_sizes}")
-    print("window  median JSD  threshold  check-pool exceed rate")
-    for size, r in results.items():
-        marker = "  <- configured" if size == config.window_size else ""
-        print(
-            f"{size:>6}  {np.median(r['calibration_scores']):10.4f}  {r['threshold']:9.4f}"
-            f"  {r['check_exceed_rate']:6.1%}{marker}"
-        )
+    print_sweep(results, config.window_size)
 
 
 if __name__ == "__main__":

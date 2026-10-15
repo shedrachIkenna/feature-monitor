@@ -9,8 +9,10 @@ and the window's feature distributions (each feature's share of all top-k slots)
 """
 
 import math
-from collections.abc import Mapping, Sequence
+from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from itertools import chain
 
 import numpy as np
 from scipy.spatial.distance import jensenshannon
@@ -98,3 +100,8 @@ def js_divergence(baseline_counts: Mapping[int, int], window_counts: Mapping[int
     q = to_distribution(window_counts, feature_ids)
     # scipy returns the Jensen-Shannon distance, the square root of the divergence.
     return float(jensenshannon(p, q, base=2) ** 2)
+
+
+def score_window(baseline_counts: Mapping[int, int], window_sets: Iterable[Iterable[int]]) -> float:
+    """Score one window given each prompt's ID list (SAE top-k features or an embedding cluster)."""
+    return js_divergence(baseline_counts, Counter(chain.from_iterable(window_sets)))
