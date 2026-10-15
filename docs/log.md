@@ -166,3 +166,8 @@ Still open: the layer 4 and 11 runs; whether the timing loop should make one unt
 Deferred the layer side quest by decision: layer 8 stays the monitored layer for now, and the next milestone takes priority.
 Parked, in order: (1) make the layer a parameter in `monitor/model.py` and `monitor/labels.py`, with the label cache keyed by layer; (2) add an untimed warm-up call to the notebook's timing loop; (3) re-run the sanity check at layers 4 and 11 with a "better" criterion fixed beforehand (a stronger verdict on the matched set).
 Still open: these three items, and the drift-test choice, which the layer results would inform.
+
+## 2026-10-15
+Completed Milestone 2.1 (storage layer): `backend/storage.py` stores requests, ranked feature hits and alerts in SQLite (standard-library `sqlite3`, no new dependency), with indexes on `requests.created_at` and `feature_hits.feature_id`. `save_request` writes a request and its hits in one transaction; `feature_counts` and the extra `request_count` use half-open `[since, until)` windows. 10 new tests on temporary database files; 32 tests pass in total. Table descriptions are in `docs/schema.md`.
+Surprise: importing `FeatureHit` from `monitor.extract` also imports torch, so storage imports it for type checking only.
+Still open: alert read/write functions (with the drift job); whether the Hugging Face Space gets persistent storage, without which `/data` is wiped on restart.

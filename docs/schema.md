@@ -1,0 +1,31 @@
+# Database schema
+
+SQLite, defined in `backend/storage.py`. The file path comes from `FEATURE_MONITOR_DB`;
+the default is `data/feature_monitor.db` at the repo root, whatever the working directory.
+
+## Tables
+
+**requests**: one row per monitored model call: UTC `created_at`, `prompt`, `reply`, `model_name`,
+an optional `scenario` tag, and `gen_ms`/`extract_ms` timings. Indexed on `created_at`.
+
+**feature_hits**: one row per top-k SAE feature of a request: `feature_id`, `activation`, `rank`
+(1 = strongest). Keyed by `(request_id, rank)`; `request_id` must exist; indexed on `feature_id`.
+
+**alerts**: one row per drift alert: `created_at`, `kind`, optional `feature_id`, a numeric `score`,
+and `details` as JSON text. No read or write functions yet; they arrive with the drift job.
+
+## Why hits have their own table
+
+The drift job asks "in how many requests did feature X appear in this window?". With one
+row per hit and an index on `feature_id`, SQLite answers by lookup; a JSON column on
+`requests` would have to be parsed for every request on every query. Separate rows also
+let the database enforce one hit per rank per request.
+
+## Conventions
+
+- Timestamps are stored as fixed-width UTC strings (`2026-10-15T12:00:00.000000Z`), so
+  comparing them as text gives the same order as comparing them as times.
+- Time windows are half-open, `[since, until)`, so back-to-back windows never count a
+  request twice. `request_count` gives the denominator for feature frequencies.
+- Deployment: on a Hugging Face Space only `/data` survives restarts, and only when
+  persistent storage is enabled; set `FEATURE_MONITOR_DB=/data/feature_monitor.db`.
