@@ -1,0 +1,1677 @@
+{
+  "created_at": "2026-10-15T09:01:37.291715+00:00",
+  "prompts_file": "eval/data/latency_prompts.json",
+  "max_new_tokens": 40,
+  "seed": 0,
+  "machine": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python": "3.12.14"
+  },
+  "packages": {
+    "torch": "2.14.1",
+    "transformer-lens": "3.9.0",
+    "sae-lens": "6.54.0",
+    "fastapi": "0.143.1",
+    "uvicorn": "0.54.0",
+    "httpx": "0.28.1"
+  },
+  "checks_passed": true,
+  "total_overhead_pct": {
+    "p50": 4.769842022605809,
+    "p95": 5.928496945414914
+  },
+  "extract_on": {
+    "extract": true,
+    "device": "cpu",
+    "model": "gpt2",
+    "requests": 100,
+    "checks": {
+      "all_status_200": true,
+      "all_rows_stored": true,
+      "all_hit_counts_20": true
+    },
+    "summary": {
+      "gen_ms": {
+        "p50": 388.8023335020989,
+        "p95": 403.7960104935337
+      },
+      "extract_ms": {
+        "p50": 17.602791485842317,
+        "p95": 20.319736876990646
+      },
+      "total_ms": {
+        "p50": 408.284145523794,
+        "p95": 426.2976103636902
+      }
+    },
+    "per_request": [
+      {
+        "status": 200,
+        "request_id": 2,
+        "total_ms": 406.13337501417845,
+        "gen_ms": 385.6942920247093,
+        "extract_ms": 18.84812500793487,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 3,
+        "total_ms": 408.69670908432454,
+        "gen_ms": 387.94825004879385,
+        "extract_ms": 19.2218329757452,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 4,
+        "total_ms": 403.33287499379367,
+        "gen_ms": 383.63575004041195,
+        "extract_ms": 18.15699995495379,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 5,
+        "total_ms": 405.7970839785412,
+        "gen_ms": 387.0320830028504,
+        "extract_ms": 17.087082960642874,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 6,
+        "total_ms": 418.2057500584051,
+        "gen_ms": 397.8757499717176,
+        "extract_ms": 18.374959006905556,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 7,
+        "total_ms": 406.8717919290066,
+        "gen_ms": 383.1483330577612,
+        "extract_ms": 19.87929199822247,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 8,
+        "total_ms": 401.21566702146083,
+        "gen_ms": 382.5435000471771,
+        "extract_ms": 17.044792068190873,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 9,
+        "total_ms": 404.7182499198243,
+        "gen_ms": 383.68591701146215,
+        "extract_ms": 19.539541914127767,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 10,
+        "total_ms": 409.97129201423377,
+        "gen_ms": 389.8494999157265,
+        "extract_ms": 18.355040927417576,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 11,
+        "total_ms": 401.3944170437753,
+        "gen_ms": 380.67624997347593,
+        "extract_ms": 16.855625086463988,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 12,
+        "total_ms": 402.96441700775176,
+        "gen_ms": 382.9498749691993,
+        "extract_ms": 18.410332966595888,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 13,
+        "total_ms": 100.06862494628876,
+        "gen_ms": 80.26958303526044,
+        "extract_ms": 18.195583950728178,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 14,
+        "total_ms": 397.931499988772,
+        "gen_ms": 379.4554159976542,
+        "extract_ms": 16.792000038549304,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 15,
+        "total_ms": 399.8815829399973,
+        "gen_ms": 381.2379169976339,
+        "extract_ms": 17.11920800153166,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 16,
+        "total_ms": 406.60612494684756,
+        "gen_ms": 387.8889170009643,
+        "extract_ms": 16.96766691748053,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 17,
+        "total_ms": 399.18162499088794,
+        "gen_ms": 380.62816695310175,
+        "extract_ms": 16.831957967951894,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 18,
+        "total_ms": 410.7687920331955,
+        "gen_ms": 389.77420795708895,
+        "extract_ms": 17.346416017971933,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 19,
+        "total_ms": 403.5188329871744,
+        "gen_ms": 384.61379101499915,
+        "extract_ms": 17.158958944492042,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 20,
+        "total_ms": 398.4878750052303,
+        "gen_ms": 379.9289589514956,
+        "extract_ms": 16.812624991871417,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 21,
+        "total_ms": 401.17179206572473,
+        "gen_ms": 382.522959029302,
+        "extract_ms": 16.88000001013279,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 22,
+        "total_ms": 399.57620797213167,
+        "gen_ms": 380.74958394281566,
+        "extract_ms": 17.062666011042893,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 23,
+        "total_ms": 400.2414169954136,
+        "gen_ms": 381.57712493557483,
+        "extract_ms": 17.021041945554316,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 24,
+        "total_ms": 405.4951249854639,
+        "gen_ms": 384.43424995057285,
+        "extract_ms": 19.499041023664176,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 25,
+        "total_ms": 493.89845808036625,
+        "gen_ms": 460.16112505458295,
+        "extract_ms": 31.29966591950506,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 26,
+        "total_ms": 845.870416960679,
+        "gen_ms": 816.0725000780076,
+        "extract_ms": 22.393667022697628,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 27,
+        "total_ms": 581.8385410821065,
+        "gen_ms": 557.3165420209989,
+        "extract_ms": 20.577582996338606,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 28,
+        "total_ms": 435.7267500599846,
+        "gen_ms": 413.8253750279546,
+        "extract_ms": 19.542208057828248,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 29,
+        "total_ms": 419.3406250560656,
+        "gen_ms": 400.59508301783353,
+        "extract_ms": 17.096666037105024,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 30,
+        "total_ms": 431.052083033137,
+        "gen_ms": 409.55558395944536,
+        "extract_ms": 19.5932500064373,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 31,
+        "total_ms": 426.0473749600351,
+        "gen_ms": 403.4928750479594,
+        "extract_ms": 20.816250005736947,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 32,
+        "total_ms": 420.4032910056412,
+        "gen_ms": 399.5484170736745,
+        "extract_ms": 19.300290965475142,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 33,
+        "total_ms": 420.3855419764295,
+        "gen_ms": 397.845666971989,
+        "extract_ms": 20.30616602860391,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 34,
+        "total_ms": 411.9162920396775,
+        "gen_ms": 391.25887502450496,
+        "extract_ms": 18.930874997749925,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 35,
+        "total_ms": 414.69858295749873,
+        "gen_ms": 394.5597499841824,
+        "extract_ms": 18.55249993968755,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 36,
+        "total_ms": 413.74174994416535,
+        "gen_ms": 393.40787497349083,
+        "extract_ms": 18.369624973274767,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 37,
+        "total_ms": 415.2665419969708,
+        "gen_ms": 394.69470805488527,
+        "extract_ms": 18.915291992016137,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 38,
+        "total_ms": 413.8035000069067,
+        "gen_ms": 394.973749993369,
+        "extract_ms": 17.201000009663403,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 39,
+        "total_ms": 410.9347080811858,
+        "gen_ms": 390.4933750163764,
+        "extract_ms": 18.886041012592614,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 40,
+        "total_ms": 410.4097500676289,
+        "gen_ms": 389.96766705531627,
+        "extract_ms": 18.86095805093646,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 41,
+        "total_ms": 404.84766697045416,
+        "gen_ms": 385.57729101739824,
+        "extract_ms": 17.399874981492758,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 42,
+        "total_ms": 414.01345806661993,
+        "gen_ms": 395.19766706507653,
+        "extract_ms": 17.121459008194506,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 43,
+        "total_ms": 413.38004101999104,
+        "gen_ms": 394.3120000185445,
+        "extract_ms": 17.330541973933578,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 44,
+        "total_ms": 410.92787496745586,
+        "gen_ms": 391.559167066589,
+        "extract_ms": 17.660834011621773,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 45,
+        "total_ms": 412.55291597917676,
+        "gen_ms": 392.23891706205904,
+        "extract_ms": 18.493917072191834,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 46,
+        "total_ms": 404.65087490156293,
+        "gen_ms": 385.8991250162944,
+        "extract_ms": 17.058041063137352,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 47,
+        "total_ms": 403.78720802254975,
+        "gen_ms": 383.60812491737306,
+        "extract_ms": 18.58262496534735,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 48,
+        "total_ms": 418.30483300145715,
+        "gen_ms": 399.5090000098571,
+        "extract_ms": 17.050083028152585,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 49,
+        "total_ms": 409.6161669585854,
+        "gen_ms": 389.44929209537804,
+        "extract_ms": 18.635541084222496,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 50,
+        "total_ms": 414.33129098732024,
+        "gen_ms": 393.77724996302277,
+        "extract_ms": 18.880083924159408,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 51,
+        "total_ms": 401.352750021033,
+        "gen_ms": 382.5352090643719,
+        "extract_ms": 16.906333970837295,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 52,
+        "total_ms": 405.4536249022931,
+        "gen_ms": 386.6480420110747,
+        "extract_ms": 16.902417060919106,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 53,
+        "total_ms": 405.6426250608638,
+        "gen_ms": 386.1028340179473,
+        "extract_ms": 17.705917009152472,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 54,
+        "total_ms": 409.8592499503866,
+        "gen_ms": 389.7944169584662,
+        "extract_ms": 18.339874921366572,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 55,
+        "total_ms": 406.78445796947926,
+        "gen_ms": 387.4091670149937,
+        "extract_ms": 17.55908294580877,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 56,
+        "total_ms": 410.00383405480534,
+        "gen_ms": 391.017249901779,
+        "extract_ms": 17.060082987882197,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 57,
+        "total_ms": 408.2968330476433,
+        "gen_ms": 389.17762495111674,
+        "extract_ms": 17.457084031775594,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 58,
+        "total_ms": 405.6320000672713,
+        "gen_ms": 385.92487503774464,
+        "extract_ms": 17.627583001740277,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 59,
+        "total_ms": 403.7512090289965,
+        "gen_ms": 385.11112495325506,
+        "extract_ms": 16.91999996546656,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 60,
+        "total_ms": 410.7856668997556,
+        "gen_ms": 390.418165945448,
+        "extract_ms": 18.678082968108356,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 61,
+        "total_ms": 402.420875034295,
+        "gen_ms": 383.8494159281254,
+        "extract_ms": 16.89450000412762,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 62,
+        "total_ms": 409.2917499365285,
+        "gen_ms": 389.03449999634176,
+        "extract_ms": 18.546874984167516,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 63,
+        "total_ms": 422.592084039934,
+        "gen_ms": 403.41324999462813,
+        "extract_ms": 17.264541005715728,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 64,
+        "total_ms": 410.5209580156952,
+        "gen_ms": 390.2081249980256,
+        "extract_ms": 18.588457955047488,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 65,
+        "total_ms": 417.64795896597207,
+        "gen_ms": 397.76620897464454,
+        "extract_ms": 18.173417076468468,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 66,
+        "total_ms": 411.56204196158797,
+        "gen_ms": 391.4776670280844,
+        "extract_ms": 17.577999969944358,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 67,
+        "total_ms": 405.5808329721913,
+        "gen_ms": 386.47320901509374,
+        "extract_ms": 17.0000420184806,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 68,
+        "total_ms": 414.54029199667275,
+        "gen_ms": 395.55687503889203,
+        "extract_ms": 17.079457989893854,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 69,
+        "total_ms": 409.8076249938458,
+        "gen_ms": 390.7800839515403,
+        "extract_ms": 17.109249951317906,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 70,
+        "total_ms": 411.9319999590516,
+        "gen_ms": 391.716375015676,
+        "extract_ms": 18.514082999899983,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 71,
+        "total_ms": 405.01874999608845,
+        "gen_ms": 386.5044170524925,
+        "extract_ms": 16.854874906130135,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 72,
+        "total_ms": 403.75408297404647,
+        "gen_ms": 385.02516702283174,
+        "extract_ms": 16.966791008599102,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 73,
+        "total_ms": 406.3436659052968,
+        "gen_ms": 387.2713749296963,
+        "extract_ms": 17.089499975554645,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 74,
+        "total_ms": 406.1344579095021,
+        "gen_ms": 385.8547500567511,
+        "extract_ms": 18.480584025382996,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 75,
+        "total_ms": 405.3540830500424,
+        "gen_ms": 385.81516698468477,
+        "extract_ms": 17.85970793571323,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 76,
+        "total_ms": 402.02066698111594,
+        "gen_ms": 383.21491691749543,
+        "extract_ms": 17.136916983872652,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 77,
+        "total_ms": 414.6341250743717,
+        "gen_ms": 395.67295904271305,
+        "extract_ms": 17.07925007212907,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 78,
+        "total_ms": 407.5341660063714,
+        "gen_ms": 388.57016700785607,
+        "extract_ms": 17.223667004145682,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 79,
+        "total_ms": 408.528917003423,
+        "gen_ms": 387.5898749101907,
+        "extract_ms": 17.145666992291808,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 80,
+        "total_ms": 414.83025008346885,
+        "gen_ms": 394.08816606737673,
+        "extract_ms": 18.844124977476895,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 81,
+        "total_ms": 408.2714579999447,
+        "gen_ms": 389.30679101031274,
+        "extract_ms": 17.062750062905252,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 82,
+        "total_ms": 413.4342080214992,
+        "gen_ms": 392.9609169717878,
+        "extract_ms": 18.671208061277866,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 83,
+        "total_ms": 404.24800000619143,
+        "gen_ms": 385.459249955602,
+        "extract_ms": 16.921082977205515,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 84,
+        "total_ms": 412.9736250033602,
+        "gen_ms": 392.27654109708965,
+        "extract_ms": 18.836250063031912,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 85,
+        "total_ms": 410.6528330594301,
+        "gen_ms": 390.05966705735773,
+        "extract_ms": 18.7115001026541,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 86,
+        "total_ms": 400.77008306980133,
+        "gen_ms": 382.1167090209201,
+        "extract_ms": 16.94037497509271,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 87,
+        "total_ms": 403.8424160098657,
+        "gen_ms": 384.97079198714346,
+        "extract_ms": 17.046957975253463,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 88,
+        "total_ms": 421.9307500170544,
+        "gen_ms": 403.0237910337746,
+        "extract_ms": 17.030165996402502,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 89,
+        "total_ms": 401.53979102615267,
+        "gen_ms": 383.16495798062533,
+        "extract_ms": 16.778582939878106,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 90,
+        "total_ms": 406.413207994774,
+        "gen_ms": 387.5373339978978,
+        "extract_ms": 17.238916945643723,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 91,
+        "total_ms": 402.23358396906406,
+        "gen_ms": 383.4425420500338,
+        "extract_ms": 16.919041983783245,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 92,
+        "total_ms": 419.0587499178946,
+        "gen_ms": 397.1866249339655,
+        "extract_ms": 19.84254107810557,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 93,
+        "total_ms": 408.10358291491866,
+        "gen_ms": 389.22208407893777,
+        "extract_ms": 17.051000031642616,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 94,
+        "total_ms": 404.6141250291839,
+        "gen_ms": 385.95237501431257,
+        "extract_ms": 16.905915923416615,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 95,
+        "total_ms": 403.8200000068173,
+        "gen_ms": 384.5434579998255,
+        "extract_ms": 17.36287504900247,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 96,
+        "total_ms": 408.0977919511497,
+        "gen_ms": 387.64041697140783,
+        "extract_ms": 18.656083033420146,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 97,
+        "total_ms": 411.333707976155,
+        "gen_ms": 390.31345897819847,
+        "extract_ms": 19.291375065222383,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 98,
+        "total_ms": 409.5707089873031,
+        "gen_ms": 389.3505829619244,
+        "extract_ms": 18.389957956969738,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 99,
+        "total_ms": 416.49387509096414,
+        "gen_ms": 389.67320800293237,
+        "extract_ms": 24.81745893601328,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 100,
+        "total_ms": 102.53995796665549,
+        "gen_ms": 82.30145799461752,
+        "extract_ms": 18.383249989710748,
+        "hits": 20
+      },
+      {
+        "status": 200,
+        "request_id": 101,
+        "total_ms": 404.4435420073569,
+        "gen_ms": 384.78204095736146,
+        "extract_ms": 17.688542022369802,
+        "hits": 20
+      }
+    ]
+  },
+  "extract_off": {
+    "extract": false,
+    "device": "cpu",
+    "model": "gpt2",
+    "requests": 100,
+    "checks": {
+      "all_status_200": true,
+      "all_rows_stored": true,
+      "all_hit_counts_0": true
+    },
+    "summary": {
+      "gen_ms": {
+        "p50": 387.7988540334627,
+        "p95": 400.63676631543785
+      },
+      "extract_ms": {
+        "p50": 0.0,
+        "p95": 0.0
+      },
+      "total_ms": {
+        "p50": 389.6962500293739,
+        "p95": 402.43902505608276
+      }
+    },
+    "per_request": [
+      {
+        "status": 200,
+        "request_id": 2,
+        "total_ms": 391.23883296269923,
+        "gen_ms": 389.5485829561949,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 3,
+        "total_ms": 394.92133306339383,
+        "gen_ms": 393.22399999946356,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 4,
+        "total_ms": 391.04845793917775,
+        "gen_ms": 389.4011249067262,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 5,
+        "total_ms": 388.4636659640819,
+        "gen_ms": 386.87724992632866,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 6,
+        "total_ms": 465.72879096493125,
+        "gen_ms": 461.8409170070663,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 7,
+        "total_ms": 389.89920902531594,
+        "gen_ms": 388.16691702231765,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 8,
+        "total_ms": 392.0394169399515,
+        "gen_ms": 390.3220420470461,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 9,
+        "total_ms": 393.07933393865824,
+        "gen_ms": 391.37958409264684,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 10,
+        "total_ms": 388.50233296398073,
+        "gen_ms": 386.87575003132224,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 11,
+        "total_ms": 392.18029100447893,
+        "gen_ms": 389.3958750413731,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 12,
+        "total_ms": 395.2474589459598,
+        "gen_ms": 391.71437500044703,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 13,
+        "total_ms": 83.5385830141604,
+        "gen_ms": 82.00283301994205,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 14,
+        "total_ms": 402.1217500558123,
+        "gen_ms": 400.33970796503127,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 15,
+        "total_ms": 387.1730420505628,
+        "gen_ms": 385.47729200217873,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 16,
+        "total_ms": 398.20275001693517,
+        "gen_ms": 396.4727920247242,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 17,
+        "total_ms": 389.1968750394881,
+        "gen_ms": 387.61737500317395,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 18,
+        "total_ms": 389.97200003359467,
+        "gen_ms": 388.3107090368867,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 19,
+        "total_ms": 391.55566703993827,
+        "gen_ms": 389.91204206831753,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 20,
+        "total_ms": 383.03891697432846,
+        "gen_ms": 381.39166694600135,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 21,
+        "total_ms": 389.1514999559149,
+        "gen_ms": 387.3962089419365,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 22,
+        "total_ms": 390.2280000038445,
+        "gen_ms": 388.66470800712705,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 23,
+        "total_ms": 389.90920793730766,
+        "gen_ms": 388.22220801375806,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 24,
+        "total_ms": 387.1879579965025,
+        "gen_ms": 385.51325001753867,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 25,
+        "total_ms": 394.0940839238465,
+        "gen_ms": 392.40075007546693,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 26,
+        "total_ms": 394.8774579912424,
+        "gen_ms": 393.1664580013603,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 27,
+        "total_ms": 389.2777080181986,
+        "gen_ms": 387.5395840732381,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 28,
+        "total_ms": 387.74620892945677,
+        "gen_ms": 386.02329208515584,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 29,
+        "total_ms": 385.56304201483727,
+        "gen_ms": 384.015291929245,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 30,
+        "total_ms": 387.2516250703484,
+        "gen_ms": 385.5706660542637,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 31,
+        "total_ms": 387.368708034046,
+        "gen_ms": 385.63412497751415,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 32,
+        "total_ms": 389.99704201705754,
+        "gen_ms": 388.3507919963449,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 33,
+        "total_ms": 389.97758307959884,
+        "gen_ms": 388.20633303839713,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 34,
+        "total_ms": 389.9784160312265,
+        "gen_ms": 388.34862504154444,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 35,
+        "total_ms": 391.39729097951204,
+        "gen_ms": 389.76183300837874,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 36,
+        "total_ms": 393.3549999492243,
+        "gen_ms": 390.8992500510067,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 37,
+        "total_ms": 399.3192500201985,
+        "gen_ms": 397.3993749823421,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 38,
+        "total_ms": 396.42087498214096,
+        "gen_ms": 394.68962501268834,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 39,
+        "total_ms": 392.71299995016307,
+        "gen_ms": 391.05141698382795,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 40,
+        "total_ms": 394.9590000556782,
+        "gen_ms": 393.2329999515787,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 41,
+        "total_ms": 384.18974995147437,
+        "gen_ms": 382.5170419877395,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 42,
+        "total_ms": 385.1207090774551,
+        "gen_ms": 383.1203329609707,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 43,
+        "total_ms": 385.44591690879315,
+        "gen_ms": 383.4687079070136,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 44,
+        "total_ms": 382.7387080527842,
+        "gen_ms": 381.13979098852724,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 45,
+        "total_ms": 387.4895829940215,
+        "gen_ms": 385.8232079073787,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 46,
+        "total_ms": 383.1569580361247,
+        "gen_ms": 381.480791955255,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 47,
+        "total_ms": 383.6070830002427,
+        "gen_ms": 381.91720796748996,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 48,
+        "total_ms": 384.53625002875924,
+        "gen_ms": 382.85154197365046,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 49,
+        "total_ms": 387.87741702981293,
+        "gen_ms": 386.1672079656273,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 50,
+        "total_ms": 397.51166698988527,
+        "gen_ms": 395.57258307468146,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 51,
+        "total_ms": 390.94616705551744,
+        "gen_ms": 389.20404203236103,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 52,
+        "total_ms": 387.83391704782844,
+        "gen_ms": 386.2182089360431,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 53,
+        "total_ms": 387.0699580293149,
+        "gen_ms": 385.41620899923146,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 54,
+        "total_ms": 387.0708330068737,
+        "gen_ms": 385.386708076112,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 55,
+        "total_ms": 386.95441698655486,
+        "gen_ms": 385.21375006530434,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 56,
+        "total_ms": 386.15075009875,
+        "gen_ms": 384.4647500663996,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 57,
+        "total_ms": 387.3713749926537,
+        "gen_ms": 385.7713339384645,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 58,
+        "total_ms": 412.2317919973284,
+        "gen_ms": 410.6832080287859,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 59,
+        "total_ms": 386.04095799382776,
+        "gen_ms": 384.38566704280674,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 60,
+        "total_ms": 394.7410830296576,
+        "gen_ms": 393.1477079167962,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 61,
+        "total_ms": 385.97166596446186,
+        "gen_ms": 384.3368749367073,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 62,
+        "total_ms": 390.4000410111621,
+        "gen_ms": 388.77045805566013,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 63,
+        "total_ms": 400.5827499786392,
+        "gen_ms": 398.876833030954,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 64,
+        "total_ms": 399.6357499854639,
+        "gen_ms": 397.82112499233335,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 65,
+        "total_ms": 392.5663330592215,
+        "gen_ms": 391.05220802593976,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 66,
+        "total_ms": 389.6810420555994,
+        "gen_ms": 387.98033306375146,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 67,
+        "total_ms": 387.3740000417456,
+        "gen_ms": 385.666707996279,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 68,
+        "total_ms": 390.33399999607354,
+        "gen_ms": 386.4849159726873,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 69,
+        "total_ms": 387.0830830419436,
+        "gen_ms": 385.40420890785754,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 70,
+        "total_ms": 391.74779201857746,
+        "gen_ms": 390.15270804520696,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 71,
+        "total_ms": 387.4178329715505,
+        "gen_ms": 385.73866593651474,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 72,
+        "total_ms": 386.44508295692503,
+        "gen_ms": 384.8105419892818,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 73,
+        "total_ms": 388.1193340057507,
+        "gen_ms": 386.42066600732505,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 74,
+        "total_ms": 390.2750830166042,
+        "gen_ms": 388.68220802396536,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 75,
+        "total_ms": 387.4416669132188,
+        "gen_ms": 385.8117499621585,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 76,
+        "total_ms": 389.064708026126,
+        "gen_ms": 387.3833749676123,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 77,
+        "total_ms": 390.05566691048443,
+        "gen_ms": 388.22179194539785,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 78,
+        "total_ms": 387.8104999894276,
+        "gen_ms": 386.12837495747954,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 79,
+        "total_ms": 385.57883293833584,
+        "gen_ms": 383.87629203498363,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 80,
+        "total_ms": 387.0267920428887,
+        "gen_ms": 385.3105829330161,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 81,
+        "total_ms": 388.8202500529587,
+        "gen_ms": 387.08533300086856,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 82,
+        "total_ms": 390.91529103461653,
+        "gen_ms": 389.1682910034433,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 83,
+        "total_ms": 386.3222919171676,
+        "gen_ms": 384.6052499720827,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 84,
+        "total_ms": 389.71145800314844,
+        "gen_ms": 387.9897079896182,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 85,
+        "total_ms": 385.9934580978006,
+        "gen_ms": 384.32812492828816,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 86,
+        "total_ms": 385.5019169859588,
+        "gen_ms": 383.7807079544291,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 87,
+        "total_ms": 384.51362506020814,
+        "gen_ms": 382.79762491583824,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 88,
+        "total_ms": 385.3484590072185,
+        "gen_ms": 383.69595899712294,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 89,
+        "total_ms": 390.01466694753617,
+        "gen_ms": 388.0937088979408,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 90,
+        "total_ms": 390.0368330068886,
+        "gen_ms": 388.3274170802906,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 91,
+        "total_ms": 385.7715839985758,
+        "gen_ms": 384.10754106007516,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 92,
+        "total_ms": 390.65537496935576,
+        "gen_ms": 388.94087506923825,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 93,
+        "total_ms": 389.74979193881154,
+        "gen_ms": 388.0725419148803,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 94,
+        "total_ms": 435.4633749462664,
+        "gen_ms": 433.8092919206247,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 95,
+        "total_ms": 388.0569579778239,
+        "gen_ms": 386.3874999806285,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 96,
+        "total_ms": 416.85124998912215,
+        "gen_ms": 415.0889159645885,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 97,
+        "total_ms": 390.87679190561175,
+        "gen_ms": 389.1590419225395,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 98,
+        "total_ms": 390.5753329163417,
+        "gen_ms": 388.9757910510525,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 99,
+        "total_ms": 408.4672500612214,
+        "gen_ms": 406.280874973163,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 100,
+        "total_ms": 82.83466706052423,
+        "gen_ms": 81.103999982588,
+        "extract_ms": 0.0,
+        "hits": 0
+      },
+      {
+        "status": 200,
+        "request_id": 101,
+        "total_ms": 391.2899580318481,
+        "gen_ms": 389.57912498153746,
+        "extract_ms": 0.0,
+        "hits": 0
+      }
+    ]
+  }
+}

@@ -6,6 +6,7 @@ The model work sits behind an `Engine`, so tests can build the app with a fake o
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -25,6 +26,13 @@ from monitor.model import MODEL_NAME, load_model_and_sae
 
 MAX_NEW_TOKENS = 40
 SEED = 0
+# Set to "0" to skip feature extraction, e.g. to measure its latency overhead.
+EXTRACT_ENV = "FEATURE_MONITOR_EXTRACT"
+
+
+def extraction_enabled() -> bool:
+    """Return False only when the extraction flag is set to \"0\"."""
+    return os.environ.get(EXTRACT_ENV, "1") != "0"
 
 
 @dataclass(frozen=True)
@@ -42,6 +50,7 @@ class Engine(Protocol):
 
     model_name: str
     device: str
+    extract: bool
 
     def run(self, prompt: str) -> EngineResult: ...
 
@@ -53,11 +62,12 @@ class GPT2Engine:
         self.model, _ = load_model_and_sae()
         self.model_name = MODEL_NAME
         self.device = str(self.model.cfg.device)
+        self.extract = extraction_enabled()
         # The seed is process-wide, so concurrent requests would disturb each other's sampling.
         self._lock = threading.Lock()
 
     def run(self, prompt: str) -> EngineResult:
-        """Sample a seeded reply, then extract features from the prompt."""
+        """Sample a seeded reply, then extract features from the prompt if enabled."""
         with self._lock:
             start = time.perf_counter()
             torch.manual_seed(SEED)
@@ -72,9 +82,12 @@ class GPT2Engine:
             reply = self.model.to_string(tokens[0, prompt_length:])
             gen_ms = (time.perf_counter() - start) * 1000
 
-            start = time.perf_counter()
-            hits = extract_features(prompt)
-            extract_ms = (time.perf_counter() - start) * 1000
+            hits: list[FeatureHit] = []
+            extract_ms = 0.0
+            if self.extract:
+                start = time.perf_counter()
+                hits = extract_features(prompt)
+                extract_ms = (time.perf_counter() - start) * 1000
         return EngineResult(reply, hits, gen_ms, extract_ms)
 
 
@@ -108,7 +121,12 @@ def create_app(load_engine: Callable[[], Engine]) -> FastAPI:
     @app.get("/health")
     def health(request: Request) -> dict:
         engine: Engine = request.app.state.engine
-        return {"status": "ok", "model": engine.model_name, "device": engine.device}
+        return {
+            "status": "ok",
+            "model": engine.model_name,
+            "device": engine.device,
+            "extract": engine.extract,
+        }
 
     @app.post("/chat")
     async def chat(body: ChatRequest, request: Request) -> ChatResponse:

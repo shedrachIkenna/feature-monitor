@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import storage
-from backend.app import EngineResult, create_app
+from backend.app import EXTRACT_ENV, EngineResult, create_app, extraction_enabled
 from monitor.extract import FeatureHit
 
 
@@ -13,6 +13,7 @@ class FakeEngine:
 
     model_name = "fake-gpt2"
     device = "cpu"
+    extract = True
     loads = 0
 
     def __init__(self) -> None:
@@ -32,7 +33,12 @@ def client(tmp_path, monkeypatch):
 
 
 def test_health_reports_model_and_device(client) -> None:
-    assert client.get("/health").json() == {"status": "ok", "model": "fake-gpt2", "device": "cpu"}
+    assert client.get("/health").json() == {
+        "status": "ok",
+        "model": "fake-gpt2",
+        "device": "cpu",
+        "extract": True,
+    }
 
 
 def test_chat_returns_reply_and_stores_request(client) -> None:
@@ -94,3 +100,12 @@ def test_stats_counts_only_requests_inside_window(client) -> None:
     wide = client.get("/features/stats", params={"minutes": 180}).json()
     assert wide["request_count"] == 3
     assert wide["counts"]["99"] == 1
+
+
+@pytest.mark.parametrize(("value", "expected"), [(None, True), ("1", True), ("0", False)])
+def test_extraction_flag_is_on_unless_set_to_zero(monkeypatch, value, expected) -> None:
+    if value is None:
+        monkeypatch.delenv(EXTRACT_ENV, raising=False)
+    else:
+        monkeypatch.setenv(EXTRACT_ENV, value)
+    assert extraction_enabled() is expected

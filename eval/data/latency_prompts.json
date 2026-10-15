@@ -1,0 +1,122 @@
+{
+  "cooking": [
+    "How long should I boil an egg for a soft yolk?",
+    "What can I use instead of buttermilk in pancakes?",
+    "Explain why bread dough needs to rest before baking.",
+    "Give me a simple recipe for tomato soup.",
+    "What is the difference between baking soda and baking powder?",
+    "How do I keep rice from sticking to the pot?",
+    "Which herbs go well with roasted chicken?",
+    "Why does onion make my eyes water when I cut it?",
+    "How do you make a basic vinaigrette?",
+    "What temperature should I cook salmon to?"
+  ],
+  "history": [
+    "Why did the Roman Empire split into east and west?",
+    "Who built the pyramids of Giza and how?",
+    "What started the First World War?",
+    "Describe daily life in a medieval village.",
+    "How did the printing press change Europe?",
+    "What was the Silk Road used for?",
+    "Why did the Berlin Wall fall in 1989?",
+    "Tell me about the ancient city of Babylon.",
+    "What caused the French Revolution?",
+    "How did people navigate ships before GPS?"
+  ],
+  "sport": [
+    "Explain the offside rule in football.",
+    "How is a tennis match scored?",
+    "What muscles does running work the most?",
+    "Who has won the most Olympic gold medals?",
+    "How long is a marathon and where does the distance come from?",
+    "What is a good warm up before playing basketball?",
+    "Explain how cricket is played in simple terms.",
+    "Why do cyclists shave their legs?",
+    "How do swimmers breathe during freestyle?",
+    "What equipment do I need to start rock climbing?"
+  ],
+  "travel": [
+    "What should I pack for a week in Iceland in winter?",
+    "Is it better to take the train or fly from Paris to Rome?",
+    "How can I avoid jet lag on a long flight?",
+    "What are the best things to see in Kyoto?",
+    "Do I need a visa to visit Brazil?",
+    "How much should I tip in restaurants in the United States?",
+    "Suggest a three day itinerary for Lisbon.",
+    "What is the safest way to carry money while travelling?",
+    "When is the best season to visit Kenya for a safari?",
+    "How do I find cheap flights?"
+  ],
+  "science": [
+    "Why is the sky blue?",
+    "How do vaccines train the immune system?",
+    "What is a black hole?",
+    "Explain photosynthesis to a ten year old.",
+    "Why does ice float on water?",
+    "How do magnets work?",
+    "What causes earthquakes?",
+    "How far away is the Moon from the Earth?",
+    "What is the difference between a virus and a bacterium?",
+    "Why do we have seasons?"
+  ],
+  "finance": [
+    "What is compound interest?",
+    "How do I start making a monthly budget?",
+    "What is the difference between a stock and a bond?",
+    "Should I pay off debt or save first?",
+    "How does a mortgage work?",
+    "What is inflation and why does it matter?",
+    "Explain what an index fund is.",
+    "How is a credit score calculated?",
+    "What is an emergency fund and how big should it be?",
+    "Why do exchange rates change?"
+  ],
+  "technology": [
+    "How does Wi-Fi send data through the air?",
+    "What is the cloud in cloud computing?",
+    "Why does my phone battery drain faster in the cold?",
+    "Explain how a search engine ranks pages.",
+    "What is the difference between RAM and storage?",
+    "How do noise cancelling headphones work?",
+    "What is two factor authentication?",
+    "How does GPS know where I am?",
+    "Why do computers need to be restarted sometimes?",
+    "What is an operating system?"
+  ],
+  "nature": [
+    "Why do leaves change colour in autumn?",
+    "How do birds know where to migrate?",
+    "What is the largest animal that has ever lived?",
+    "How do bees make honey?",
+    "Why do cats purr?",
+    "How do coral reefs form?",
+    "What do pandas eat in the wild?",
+    "How long can a tortoise live?",
+    "Why do some trees lose their leaves in winter?",
+    "How do octopuses change colour?"
+  ],
+  "arts": [
+    "Who painted the Mona Lisa and why is it famous?",
+    "What makes a good short story?",
+    "Explain the difference between a sonnet and a haiku.",
+    "How do I start learning to play the guitar?",
+    "What was the Renaissance in art?",
+    "Recommend some classic novels for a beginner.",
+    "How is an orchestra arranged on stage?",
+    "What is impressionism?",
+    "Give me tips for drawing realistic faces.",
+    "Why is Shakespeare still read today?"
+  ],
+  "everyday": [
+    "How do I get a red wine stain out of a carpet?",
+    "What is a good morning routine?",
+    "How can I fall asleep faster?",
+    "How often should I water a cactus?",
+    "Write a polite email asking my landlord to fix the heating.",
+    "How do I unclog a kitchen sink without chemicals?",
+    "What are some easy ways to save energy at home?",
+    "How do I change a flat tyre on a bicycle?",
+    "Give me ideas for a rainy day with children.",
+    "How can I remember people's names better?"
+  ]
+}
