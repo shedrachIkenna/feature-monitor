@@ -94,7 +94,14 @@ A feature is just a number like `18171`. To know what it means, people run it ov
 of text, see when it fires, and write a short description. **Neuronpedia** is a public
 website that stores such descriptions. Many of them were written automatically by
 another language model, so they can be wrong or vague. Example from our data:
-feature 18171 is labelled *"medical terms related to inflammation or clinical conditions"*.
+feature 18171 is labelled *"medical terms related to various types of "itis" and
+inflammation conditions"*.
+
+A feature can have several explanations, written by different models. Some are
+**scored**: another model checks how well the explanation predicts where the feature
+fires, giving a number from 0 to 1. Labels are **hints, not explanations**: on our 14
+cached features, the two explanation sources disagreed on 13, sometimes completely
+(section 3.4).
 
 ### 1.8 Drift, baselines and alerts
 - **Drift** means the statistics of something change over time. Here: which features
@@ -366,13 +373,20 @@ How `get_label` works:
    The response is **JSON**, a standard text format for nested data.
 3. **Handle failures by kind.** A **transient** error is temporary and might succeed a
    moment later: a timeout, a dropped connection, HTTP 429 ("too many requests") or a 5xx
-   code (the server broke). These are retried once. A **permanent** error won't change on
+   code (the server broke). These are retried once, after a **pause**: 1 second, or the
+   server's `Retry-After` header (how long it asks us to wait), capped at 10 seconds.
+   Retrying instantly would ignore what a rate limit is asking for. A **permanent** error won't change on
    retry: other HTTP errors such as 404 ("no such feature"), or a response that isn't
    valid JSON. These give up straight away. Either way the result is `"unlabelled"`, and
    **nothing is saved**, so a brief outage doesn't become a permanently missing label.
-4. **Read the label** with `_explanation_from_payload`. It returns the first non-empty
-   `explanations[].description` and reads nothing else. A real response for feature
-   18171 has two explanations; the first is the label above.
+4. **Choose the label** with `_explanation_from_payload`. It reads only
+   `explanations[].description`, plus each explanation's `scores`:
+   - An explanation's score is the **average** of its score values (`_mean_score`).
+   - The highest-scoring explanation wins, but **only if it scores at least 0.7**
+     (`MIN_EXPLANATION_SCORE`). Otherwise the first explanation is used. On a tie, the
+     earlier one wins.
+   - The 0.7 cut-off is our own judgement, not a Neuronpedia standard. Scores near 0.5 are
+     close to coin-flip agreement.
 5. **Save** the label to the cache. A successful response with no explanation saves
    `"unlabelled"`, because that is a real answer.
 
@@ -384,10 +398,20 @@ earlier log entry called that the explanation, but it is actually example text u
 score explanations. The strict parser fixed both problems, and the 8 bad entries were
 re-fetched.
 
+**Choosing between explanations (2026-10-13).** Each feature we checked had two
+explanations. The first, by gpt-3.5-turbo, is never scored. The second, by gpt-4o-mini,
+has two `eleuther_fuzz` scores. Switching to "highest-scored" changed 13 of the 14 cached
+labels, and for feature 23838 it would have picked *"questions or discussions about
+societal issues"*, scoring only **0.49**. The unscored alternative, *"interrogative
+sentences ending with a question mark"*, fits the evidence: the tokens this feature makes
+the model more likely to output next are all question marks. The 0.7 minimum keeps that
+one, so 12 of 14 labels changed. The old labels are backed up outside the repository.
+The cache stores only label text, so it was cleared to apply the new rule everywhere.
+
 The `urllib` used here is part of Python itself, so no extra package is needed.
 
 Running `uv run python -m monitor.labels "your prompt"` prints the top 10 features with
-their labels, for example `3602: references to passwords and login credentials`.
+their labels, for example `3602: references to passwords and related security terminology`.
 
 ### 3.5 `eval/mps_check.py`: is MPS safe for our use?
 TransformerLens treats no PyTorch version as MPS-safe, but the only *specific* bug it lists
@@ -408,10 +432,10 @@ generation or steering, which later milestones add.
 
 ## Part 4. The tests
 
-Run all of them with `make test` (`uv run pytest`): **13 tests, all passing.** Two warnings
+Run all of them with `make test` (`uv run pytest`): **22 tests, all passing.** Two warnings
 appear, both from inside sae-lens (section 3.2). Three tests are tagged `requires_model`
 because they load GPT-2 and the SAE, which downloads them on the first run. `make
-test-fast` skips those three and runs the other 10 in about 2.6 s, without any network
+test-fast` skips those three and runs the other 19 in about 2.8 s, without any network
 access.
 
 | Test | What it checks | Loads the model? |
@@ -422,15 +446,18 @@ access.
 | `test_extract.py::…returns_top_valid_deterministic_hits` | Password prompt gives exactly 20 hits; `k=5` gives ≤5; IDs are in range; all activations > 0; sorted high to low; two runs give identical results (**deterministic**) | Yes |
 | `test_labels.py::…fetches_and_caches_label` | A real-shaped response gives its first explanation, fetched once and then served from the cache | No (mocked) |
 | `test_labels.py::…ignores_text_outside_explanations` | A response with only the release title and a `jsonDetails` snippet gives `"unlabelled"` | No (mocked) |
-| `test_labels.py::…retries_once_then_returns_unlabelled` | Timeout, then HTTP 429: exactly 2 tries, nothing cached, and the next call tries again | No (mocked) |
-| `test_labels.py::…does_not_retry_permanent_http_error` | HTTP 404: exactly 1 try | No (mocked) |
-| `test_labels.py::…retries_server_error_once` | HTTP 503: exactly 2 tries | No (mocked) |
+| `test_labels.py::…retries_once_then_returns_unlabelled` | Timeout, then HTTP 429: exactly 2 tries with one pause, nothing cached, and the next call tries again | No (mocked) |
+| `test_labels.py::…does_not_retry_permanent_http_error` | HTTP 404: exactly 1 try and no pause | No (mocked) |
+| `test_labels.py::…retries_server_error_once` | HTTP 503: exactly 2 tries, with a 1 s pause between them | No (mocked) |
+| `test_labels.py::…honours_capped_retry_after` (2 cases) | HTTP 429 with `Retry-After: 3` pauses 3 s; `Retry-After: 120` is capped at 10 s | No (mocked) |
+| `test_labels.py::…prefers_highest_mean_score` (7 cases) | Scored beats unscored; higher average wins; ties and no scores keep the first; text scores are ignored; 0.49 is rejected and 0.7 is accepted | No |
 | `test_labels.py::…prints_top_prompt_features_with_labels` | The command-line output contains the IDs and labels | No (mocked) |
 | `test_sanity.py::…counts_each_prompt_once` | A feature repeated within one prompt counts once | No |
 | `test_sanity.py::…finds_enriched_features_and_jaccard` | Common, enriched and Jaccard values on a small hand-made example | No |
 | `test_sanity.py::…clear_and_none_verdicts` | The "clearly" and "not at all" verdicts | No |
 
-**Mocking.** The label tests never touch the real internet. They use pytest's
+**Mocking.** The label tests never touch the real internet, and never really wait: an
+automatic fixture replaces the pause with a recorder. They use pytest's
 **`monkeypatch`**, which temporarily swaps a real function for a fake one during a test.
 For example, the fake `urlopen` returns a prepared response instead of calling
 Neuronpedia. This makes the tests fast, and they give the same result every time. A fake
@@ -488,12 +515,12 @@ Enriched features in the **original** set:
 
 | Enriched for | Feature | Medical | Coding | Neuronpedia label |
 |---|---:|---:|---:|---|
-| Medical | 18171 | 5/10 | 0/10 | medical terms related to inflammation or clinical conditions |
+| Medical | 18171 | 5/10 | 0/10 | medical terms related to various types of "itis" and inflammation conditions |
 | Medical | 23838 | 5/10 | 1/10 | interrogative sentences ending with a question mark |
-| Coding | 10590 | 1/10 | 5/10 | questions starting with "Can I" or "How can I" |
-| Coding | 18200 | 1/10 | 6/10 | instances of the article "a" before a noun |
-| Coding | 21629 | 1/10 | 5/10 | phrases related to instructing or providing guidance |
-| Coding | 21981 | 1/10 | 5/10 | questions starting with "How do you"/"How do we" … |
+| Coding | 10590 | 1/10 | 5/10 | instances of the first-person pronoun "I" used in various contexts |
+| Coding | 18200 | 1/10 | 6/10 | instances of the article "a" and its variations |
+| Coding | 21629 | 1/10 | 5/10 | phrases that start with "How to." |
+| Coding | 21981 | 1/10 | 5/10 | query-based phrasing or questions regarding knowledge and understanding |
 
 In the **matched** set, only one feature remains: 18171 (medical terms), in 7/10 medical
 prompts and 0/10 coding prompts.
@@ -511,6 +538,10 @@ prompts and 0/10 coding prompts.
 - **For the style and framing scenarios,** layer 8's sensitivity to phrasing suggests SAE
   features may react to wording changes that embeddings are designed to ignore.
   Untested; that is what the real experiment is for.
+- **This conclusion does not depend on labels.** It rests on what the features *did*:
+  five disappeared when only phrasing was held constant. The labels were re-chosen on
+  2026-10-13 (section 3.4) and 5 of the 6 changed wording; all still describe phrasing
+  except 18171.
 - **Limits:** 20 prompts per set, one layer, hand-written prompts, labels that may be
   wrong. This is a quick check, not evidence of anything general.
 - **Still open:** repeat at layers 4 and 11.
@@ -627,8 +658,8 @@ All 10 are resolved.
 |---|---|
 | `uv sync` | Install exactly what `uv.lock` lists |
 | `uv add <pkg>` / `uv add --dev <pkg>` | Add a dependency (never `pip install`) |
-| `make test` = `uv run pytest` | Run all 13 tests |
-| `make test-fast` | Run the 10 tests that don't load the model |
+| `make test` = `uv run pytest` | Run all 22 tests |
+| `make test-fast` | Run the 19 tests that don't load the model |
 | `uv run pytest tests/monitor/test_labels.py -v` | Run one test file, listing each test |
 | `make lint` = `uv run ruff check .` | Look for code problems |
 | `make format` = `uv run ruff format .` | Fix layout |

@@ -16,6 +16,8 @@ CACHE_PATH = Path(__file__).resolve().with_name("labels_cache.json")
 REQUEST_TIMEOUT_SECONDS = 10
 RETRY_DELAY_SECONDS = 1.0
 MAX_RETRY_DELAY_SECONDS = 10.0
+# Our own judgement, not a Neuronpedia standard: scores near 0.5 are close to coin-flip.
+MIN_EXPLANATION_SCORE = 0.7
 
 
 def _feature_url(feature_id: int | str) -> str:
@@ -52,16 +54,44 @@ def _write_cache(cache: dict[str, str]) -> None:
     )
 
 
+def _mean_score(explanation: dict) -> float | None:
+    """Return the mean of an explanation's numeric score values, or None if it is unscored."""
+    scores = explanation.get("scores")
+    if not isinstance(scores, list):
+        return None
+    values = [
+        score["value"]
+        for score in scores
+        if isinstance(score, dict)
+        and isinstance(score.get("value"), int | float)
+        and not isinstance(score.get("value"), bool)
+    ]
+    return sum(values) / len(values) if values else None
+
+
 def _explanation_from_payload(payload: object) -> str | None:
-    """Return the first explanation description in a Neuronpedia feature response."""
+    """Return the highest-scored explanation scoring at least MIN_EXPLANATION_SCORE.
+
+    Falls back to the first explanation when none qualifies; ties keep the earlier one.
+    """
     if not isinstance(payload, dict) or not isinstance(payload.get("explanations"), list):
         return None
+    first_text: str | None = None
+    best_text: str | None = None
+    best_score = MIN_EXPLANATION_SCORE
     for explanation in payload["explanations"]:
-        if isinstance(explanation, dict):
-            description = explanation.get("description")
-            if isinstance(description, str) and description.strip():
-                return description.strip()
-    return None
+        if not isinstance(explanation, dict):
+            continue
+        description = explanation.get("description")
+        if not isinstance(description, str) or not description.strip():
+            continue
+        first_text = first_text or description.strip()
+        score = _mean_score(explanation)
+        if score is not None and (
+            score > best_score or (best_text is None and score == best_score)
+        ):
+            best_text, best_score = description.strip(), score
+    return best_text or first_text
 
 
 def _fetch_feature_payload(feature_id: int | str) -> object:

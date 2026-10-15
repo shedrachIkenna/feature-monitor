@@ -149,3 +149,9 @@ Verified Milestone 1.3 (feature labels): a live request to the endpoint returned
 `get_label` now pauses before its single retry: 1 s by default, or a numeric `Retry-After` header on 429/5xx, capped at 10 s. Permanent errors still return at once without pausing.
 Tests replace `time.sleep` with a recorder; the 4 pause tests failed on the old logic and pass now (15 tests in total).
 Surprise: Neuronpedia sent no rate-limit headers on a successful request, so the 1 s default is our own choice.
+
+## 2026-10-15
+Labels now prefer the highest-scored Neuronpedia explanation, but only if its mean score is at least 0.7; otherwise the first explanation is used. The 0.7 cut-off is our own judgement (scores near 0.5 are close to coin-flip).
+On every feature checked, the first (gpt-3.5) explanation is unscored and the second (gpt-4o-mini) has two eleuther_fuzz scores. Pure "highest-scored" would have relabelled feature 23838 as "societal issues" (score 0.49), although its top output tokens are all question marks; the minimum keeps the question-mark label.
+Surprise: the two explanation sources disagreed on 13 of 14 cached features. The cache was cleared (old copy kept outside the repo) and the notebook re-run: 12 of 14 labels changed, counts and verdicts are unchanged, and the phrasing conclusion still holds because it rests on feature behaviour, not labels.
+Still open: whether the cache should record which rule chose each label, so a future rule change is detected automatically.

@@ -152,3 +152,23 @@ def test_main_prints_top_prompt_features_with_labels(monkeypatch, capsys) -> Non
     assert "3" in captured
     assert "money and trade" in captured
     assert "9" in captured
+
+
+def _explanation(description: str, *values: object) -> dict[str, object]:
+    return {"description": description, "scores": [{"value": value} for value in values]}
+
+
+@pytest.mark.parametrize(
+    ("explanations", "expected"),
+    [
+        ([_explanation("unscored"), _explanation("scored", 0.8)], "scored"),
+        ([_explanation("mean 0.80", 0.9, 0.7), _explanation("mean 0.85", 0.85)], "mean 0.85"),
+        ([_explanation("first"), _explanation("second")], "first"),
+        ([_explanation("tie first", 0.9), _explanation("tie second", 0.9)], "tie first"),
+        ([_explanation("text score", "high"), _explanation("numeric", 0.8)], "numeric"),
+        ([_explanation("unscored"), _explanation("poor", 0.49)], "unscored"),
+        ([_explanation("unscored"), _explanation("at minimum", 0.7)], "at minimum"),
+    ],
+)
+def test_explanation_prefers_highest_mean_score(explanations, expected: str) -> None:
+    assert labels._explanation_from_payload({"explanations": explanations}) == expected
