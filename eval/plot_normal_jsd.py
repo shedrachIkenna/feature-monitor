@@ -52,8 +52,8 @@ def main() -> None:
     result = next(r for r in payload["results"] if r["window_size"] == config["window_size"])
     title = (
         f"Normal windows of {result['window_size']} requests "
-        f"({len(result['calibration_scores'])} windows, calibration half)\n"
-        f"Held-out check half exceeds the threshold in {result['check_exceed_rate']:.1%} of windows"
+        f"({len(result['calibration_scores'])} windows from unused normal_train)\n"
+        f"normal_test windows exceed the threshold in {result['check_exceed_rate']:.1%} of cases"
     )
     out = RESULTS_DIR / "normal_jsd.png"
     plot_scores(result["calibration_scores"], result["threshold"], title, out)

@@ -1,8 +1,9 @@
 """Measure how much the calibrated threshold and its held-out exceed rate move with the seed.
 
-Each seed gives a different half-split of normal_test and different random windows. A swap run
-at the configured seed sets the threshold on the check half and tests it on the calibration half.
-Uses the per-prompt feature cache written by monitor.calibrate, so it needs no model.
+For each seed, the threshold is calibrated on the unused normal_train pool and checked on all of
+normal_test. It is also checked on a random 3,000-prompt subset of normal_test, which mimics a
+fresh batch of normal traffic with its own small offset from the baseline. Uses the feature caches
+written by monitor.calibrate, so it needs no model.
 
 Run with: uv run python -m eval.threshold_stability
 """
@@ -14,54 +15,44 @@ import numpy as np
 
 from monitor.baseline import baseline_path, load_baseline
 from monitor.calibrate import (
+    CALIBRATION_POOL,
+    CHECK_POOL,
     SWEEP_SIZES,
     calibrate,
-    features_cache_path,
-    split_halves,
+    load_pool_features,
     window_scores,
 )
 from monitor.config import load_config
 
 N_SEEDS = 20
+SUBSET_SIZE = 3000
 OUT_PATH = Path(__file__).resolve().parent / "results" / "threshold_stability.json"
-
-
-def swapped_exceed_rate(
-    feature_sets: list[list[int]],
-    baseline_counts: dict[int, int],
-    window_size: int,
-    percentile: float,
-    n_windows: int,
-    seed: int,
-) -> float:
-    """Set the threshold on the check half and return the exceed rate on the calibration half."""
-    calibration, check = split_halves(len(feature_sets), seed)
-    rng = np.random.default_rng([seed, window_size])
-    first = window_scores(feature_sets, check, baseline_counts, window_size, n_windows, rng)
-    second = window_scores(feature_sets, calibration, baseline_counts, window_size, n_windows, rng)
-    return float((second > np.percentile(first, percentile)).mean())
 
 
 def main() -> None:
     """Run every seed and window size, save the raw numbers and print a summary."""
     config = load_config()
     base_path = baseline_path()
-    _, baseline = load_baseline(base_path)
-    cache = features_cache_path(base_path)
-    if not cache.exists():
-        raise FileNotFoundError(f"{cache} is missing; run monitor.calibrate first")
-    feature_sets = json.loads(cache.read_text(encoding="utf-8"))["features"]
+    metadata, baseline = load_baseline(base_path)
+    features = load_pool_features(base_path, metadata)
+    check = features[CHECK_POOL]
 
     rows = []
     for size in SWEEP_SIZES:
         for seed in range(N_SEEDS):
             r = calibrate(
-                feature_sets,
+                features[CALIBRATION_POOL],
+                check,
                 baseline["counts"],
                 size,
                 config.threshold_percentile,
                 config.calibration_windows,
                 seed,
+            )
+            rng = np.random.default_rng([seed, size, SUBSET_SIZE])
+            subset = rng.choice(len(check), size=SUBSET_SIZE, replace=False)
+            subset_scores = window_scores(
+                check, subset, baseline["counts"], size, config.calibration_windows, rng
             )
             rows.append(
                 {
@@ -69,35 +60,31 @@ def main() -> None:
                     "seed": seed,
                     "threshold": r["threshold"],
                     "check_exceed_rate": r["check_exceed_rate"],
+                    "subset_exceed_rate": float((subset_scores > r["threshold"]).mean()),
                 }
             )
-    swaps = {
-        size: swapped_exceed_rate(
-            feature_sets,
-            baseline["counts"],
-            size,
-            config.threshold_percentile,
-            config.calibration_windows,
-            config.seed,
-        )
-        for size in SWEEP_SIZES
-    }
 
     OUT_PATH.write_text(
-        json.dumps({"config": vars(config), "seeds": rows, "swap_exceed_rate": swaps}, indent=1)
+        json.dumps({"config": vars(config), "subset_size": SUBSET_SIZE, "seeds": rows}, indent=1)
         + "\n",
         encoding="utf-8",
     )
     print(f"Saved {OUT_PATH}")
-    print(f"{N_SEEDS} seeds per window size; exceed rate = held-out half above the threshold")
-    print("window  threshold min-max    exceed mean  exceed min-max  seeds >2%  swap(seed 0)")
+    print(f"{N_SEEDS} seeds per window size; exceed rate = normal windows above the threshold")
+    print(
+        "window  threshold min-max  full normal_test: mean, min-max, >2%"
+        f"  |  {SUBSET_SIZE}-prompt subsets: mean, min-max, >2%"
+    )
     for size in SWEEP_SIZES:
-        t = np.array([r["threshold"] for r in rows if r["window_size"] == size])
-        e = np.array([r["check_exceed_rate"] for r in rows if r["window_size"] == size])
-        print(
-            f"{size:>6}  {t.min():.4f}-{t.max():.4f}  {e.mean():10.1%}  "
-            f"{e.min():5.1%}-{e.max():5.1%}  {int((e > 0.02).sum()):>9}  {swaps[size]:11.1%}"
-        )
+        sel = [r for r in rows if r["window_size"] == size]
+        t = np.array([r["threshold"] for r in sel])
+        line = f"{size:>6}  {t.min():.4f}-{t.max():.4f}"
+        for key in ("check_exceed_rate", "subset_exceed_rate"):
+            e = np.array([r[key] for r in sel])
+            line += (
+                f"  |  {e.mean():5.1%}, {e.min():4.1%}-{e.max():5.1%}, {int((e > 0.02).sum()):>2}"
+            )
+        print(line)
 
 
 if __name__ == "__main__":

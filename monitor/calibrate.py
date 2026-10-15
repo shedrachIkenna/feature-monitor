@@ -1,10 +1,11 @@
 """Calibrate the overall drift threshold on normal traffic that the baseline never saw.
 
-normal_test is split in half with a fixed seed. Random windows from the calibration half are
-scored against the baseline with Jensen-Shannon divergence, and the threshold is set at the
-configured percentile of those scores. Windows from the check half then measure how often normal
-traffic really exceeds it. Scoring the calibration windows themselves would give the percentile
-back by construction.
+The threshold is the configured percentile of Jensen-Shannon scores for random windows drawn from
+the calibration pool: the ~11,000 normal_train prompts left out of the baseline sample. Windows
+from a separate check pool (normal_test) then measure how often normal traffic really exceeds it;
+scoring the calibration windows themselves would give the percentile back by construction.
+Every window drawn from one finite pool shares that pool's small offset from the baseline, so a
+large calibration pool and a separate check pool keep the measured false-alarm rate honest.
 
 Run with: uv run python -m monitor.calibrate
 """
@@ -18,12 +19,20 @@ from pathlib import Path
 
 import numpy as np
 
-from monitor.baseline import POOL_DIR, K, baseline_path, load_baseline, read_pool
+from monitor.baseline import (
+    POOL_DIR,
+    K,
+    baseline_path,
+    load_baseline,
+    read_pool,
+    sample_prompts,
+)
 from monitor.config import DriftConfig, load_config
 from monitor.drift import js_divergence
 from monitor.extract import extract_features
 
-POOL = "normal_test"
+CALIBRATION_POOL = "normal_train_unused"
+CHECK_POOL = "normal_test"
 SWEEP_SIZES = (100, 250, 500, 1000)
 RESULTS_PATH = Path(__file__).resolve().parent.parent / "eval" / "results" / "normal_jsd.json"
 
@@ -33,9 +42,15 @@ def threshold_path(baseline: Path) -> Path:
     return baseline.with_name(f"{baseline.stem}_threshold.json")
 
 
-def features_cache_path(baseline: Path) -> Path:
-    """Return the (uncommitted) cache of per-prompt top-k features for the normal_test pool."""
-    return baseline.with_name(f"{baseline.stem}_{POOL}_features.json")
+def features_cache_path(baseline: Path, pool: str) -> Path:
+    """Return the (uncommitted) cache of per-prompt top-k features for one pool."""
+    return baseline.with_name(f"{baseline.stem}_{pool}_features.json")
+
+
+def unused_prompts(pool: list[str], baseline_metadata: dict) -> list[str]:
+    """Return the pool prompts not drawn into the baseline sample, in pool order."""
+    used = set(sample_prompts(pool, baseline_metadata["prompt_count"], baseline_metadata["seed"]))
+    return [p for p in pool if p not in used]
 
 
 def load_or_extract_features(prompts: Sequence[str], cache: Path, k: int = K) -> list[list[int]]:
@@ -48,12 +63,6 @@ def load_or_extract_features(prompts: Sequence[str], cache: Path, k: int = K) ->
     payload = {"k": k, "prompt_count": len(prompts), "features": features}
     cache.write_text(json.dumps(payload) + "\n", encoding="utf-8")
     return features
-
-
-def split_halves(n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
-    """Shuffle indices 0..n-1 with a seeded generator and return (calibration, check) halves."""
-    order = np.random.default_rng(seed).permutation(n)
-    return order[: n // 2], order[n // 2 :]
 
 
 def window_scores(
@@ -76,20 +85,27 @@ def window_scores(
 
 
 def calibrate(
-    feature_sets: Sequence[Sequence[int]],
+    calibration_sets: Sequence[Sequence[int]],
+    check_sets: Sequence[Sequence[int]],
     baseline_counts: dict[int, int],
     window_size: int,
     percentile: float,
     n_windows: int,
     seed: int,
 ) -> dict:
-    """Set the threshold on the calibration half and measure the exceed rate on the check half."""
-    calibration, check = split_halves(len(feature_sets), seed)
+    """Set the threshold on the calibration pool and measure the exceed rate on the check pool."""
     rng = np.random.default_rng([seed, window_size])
     calibration_scores = window_scores(
-        feature_sets, calibration, baseline_counts, window_size, n_windows, rng
+        calibration_sets,
+        np.arange(len(calibration_sets)),
+        baseline_counts,
+        window_size,
+        n_windows,
+        rng,
     )
-    check_scores = window_scores(feature_sets, check, baseline_counts, window_size, n_windows, rng)
+    check_scores = window_scores(
+        check_sets, np.arange(len(check_sets)), baseline_counts, window_size, n_windows, rng
+    )
     threshold = float(np.percentile(calibration_scores, percentile))
     return {
         "window_size": window_size,
@@ -100,7 +116,13 @@ def calibrate(
     }
 
 
-def save_threshold(result: dict, config: DriftConfig, baseline_metadata: dict, path: Path) -> None:
+def save_threshold(
+    result: dict,
+    config: DriftConfig,
+    baseline_metadata: dict,
+    pool_sizes: dict[str, int],
+    path: Path,
+) -> None:
     """Write the threshold with everything needed to tell whether it still applies."""
     payload = {
         "threshold": result["threshold"],
@@ -108,7 +130,7 @@ def save_threshold(result: dict, config: DriftConfig, baseline_metadata: dict, p
         "percentile": config.threshold_percentile,
         "calibration_windows": config.calibration_windows,
         "seed": config.seed,
-        "pool": POOL,
+        "pool_sizes": pool_sizes,
         "check_exceed_rate": result["check_exceed_rate"],
         "baseline_created": baseline_metadata["created"],
         "created": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -129,18 +151,33 @@ def load_threshold(path: Path, window_size: int, baseline_created: str) -> float
     return payload["threshold"]
 
 
+def load_pool_features(base_path: Path, baseline_metadata: dict) -> dict[str, list[list[int]]]:
+    """Return per-prompt features for the calibration and check pools, extracting if needed."""
+    train = read_pool(POOL_DIR / f"{baseline_metadata['pool']}.jsonl")
+    pools = {
+        CALIBRATION_POOL: unused_prompts(train, baseline_metadata),
+        CHECK_POOL: read_pool(POOL_DIR / f"{CHECK_POOL}.jsonl"),
+    }
+    return {
+        name: load_or_extract_features(
+            prompts, features_cache_path(base_path, name), baseline_metadata["k"]
+        )
+        for name, prompts in pools.items()
+    }
+
+
 def main() -> None:
     """Calibrate the configured window size, save it, and sweep other sizes for comparison."""
     config = load_config()
     base_path = baseline_path()
     metadata, baseline = load_baseline(base_path)
-    prompts = read_pool(POOL_DIR / f"{POOL}.jsonl")
-    feature_sets = load_or_extract_features(prompts, features_cache_path(base_path), metadata["k"])
+    features = load_pool_features(base_path, metadata)
 
     sizes = sorted(set(SWEEP_SIZES) | {config.window_size})
     results = {
         size: calibrate(
-            feature_sets,
+            features[CALIBRATION_POOL],
+            features[CHECK_POOL],
             baseline["counts"],
             size,
             config.threshold_percentile,
@@ -152,17 +189,22 @@ def main() -> None:
 
     chosen = results[config.window_size]
     path = threshold_path(base_path)
-    save_threshold(chosen, config, metadata, path)
+    pool_sizes = {name: len(sets) for name, sets in features.items()}
+    save_threshold(chosen, config, metadata, pool_sizes, path)
     if load_threshold(path, config.window_size, metadata["created"]) != chosen["threshold"]:
         raise RuntimeError("reloaded threshold differs from the one just saved")
 
     RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     RESULTS_PATH.write_text(
-        json.dumps({"config": vars(config), "results": list(results.values())}) + "\n",
+        json.dumps(
+            {"config": vars(config), "pool_sizes": pool_sizes, "results": list(results.values())}
+        )
+        + "\n",
         encoding="utf-8",
     )
     print(f"Saved {path} and {RESULTS_PATH}")
-    print("window  median JSD  threshold  check-half exceed rate")
+    print(f"Pools: {pool_sizes}")
+    print("window  median JSD  threshold  check-pool exceed rate")
     for size, r in results.items():
         marker = "  <- configured" if size == config.window_size else ""
         print(
