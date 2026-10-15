@@ -124,13 +124,15 @@ def create_app(
         if load_job is not None:
             job = await run_in_threadpool(load_job)
             scheduler = BackgroundScheduler()
-            # One check at a time; if checks fall behind, run the missed ones once.
+            # One check at a time. A check that starts late (the server is busy with a request)
+            # still runs instead of being skipped, and several missed checks run once.
             scheduler.add_job(
                 job.run,
                 "interval",
                 seconds=load_config().check_interval_seconds,
                 max_instances=1,
                 coalesce=True,
+                misfire_grace_time=None,
             )
             scheduler.start()
             app.state.scheduler = scheduler

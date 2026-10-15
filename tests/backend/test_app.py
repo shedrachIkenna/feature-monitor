@@ -138,3 +138,6 @@ def test_drift_job_is_scheduled_at_the_configured_interval(tmp_path, monkeypatch
 
     assert scheduled.func == job.run
     assert scheduled.trigger.interval.total_seconds() == load_config().check_interval_seconds
+    # Late checks must run, not be skipped (the default skips any check over 1 s late).
+    assert scheduled.misfire_grace_time is None
+    assert scheduled.coalesce is True
