@@ -127,6 +127,27 @@ def recent_requests(limit: int = 50, path: Path | None = None) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def hits_for_requests(
+    request_ids: Sequence[int], path: Path | None = None
+) -> dict[int, list[dict]]:
+    """Return each request's hits in rank order, keyed by request id."""
+    hits: dict[int, list[dict]] = {request_id: [] for request_id in request_ids}
+    if not hits:
+        return hits
+    placeholders = ", ".join("?" * len(hits))
+    with _connect(path) as conn:
+        rows = conn.execute(
+            "SELECT request_id, feature_id, activation, rank FROM feature_hits"
+            f" WHERE request_id IN ({placeholders}) ORDER BY request_id, rank",
+            list(hits),
+        ).fetchall()
+    for row in rows:
+        hits[row["request_id"]].append(
+            {"feature_id": row["feature_id"], "activation": row["activation"], "rank": row["rank"]}
+        )
+    return hits
+
+
 def feature_counts(since: datetime, until: datetime, path: Path | None = None) -> dict[int, int]:
     """Count, per feature, the requests in [since, until) where it was among the hits."""
     with _connect(path) as conn:

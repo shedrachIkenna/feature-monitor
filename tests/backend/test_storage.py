@@ -83,6 +83,21 @@ def test_recent_requests_newest_first_with_limit(db) -> None:
     assert [r["prompt"] for r in storage.recent_requests(limit=2)] == ["c", "b"]
 
 
+def test_hits_for_requests_groups_by_request_in_rank_order(db) -> None:
+    first = save([FeatureHit(7, 3.5), FeatureHit(2, 1.25)], T0)
+    empty = save([], T0)
+    save([FeatureHit(9, 1.0)], T0)  # not asked for
+
+    assert storage.hits_for_requests([first, empty]) == {
+        first: [
+            {"feature_id": 7, "activation": 3.5, "rank": 1},
+            {"feature_id": 2, "activation": 1.25, "rank": 2},
+        ],
+        empty: [],
+    }
+    assert storage.hits_for_requests([]) == {}
+
+
 def test_feature_counts_and_request_count_use_half_open_window(db) -> None:
     save([FeatureHit(1, 1.0), FeatureHit(2, 1.0)], T0 - timedelta(seconds=1))  # before
     save([FeatureHit(1, 1.0), FeatureHit(2, 1.0)], T0)  # at since: included

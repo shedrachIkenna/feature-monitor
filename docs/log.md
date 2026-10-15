@@ -171,3 +171,8 @@ Still open: these three items, and the drift-test choice, which the layer result
 Completed Milestone 2.1 (storage layer): `backend/storage.py` stores requests, ranked feature hits and alerts in SQLite (standard-library `sqlite3`, no new dependency), with indexes on `requests.created_at` and `feature_hits.feature_id`. `save_request` writes a request and its hits in one transaction; `feature_counts` and the extra `request_count` use half-open `[since, until)` windows. 10 new tests on temporary database files; 32 tests pass in total. Table descriptions are in `docs/schema.md`.
 Surprise: importing `FeatureHit` from `monitor.extract` also imports torch, so storage imports it for type checking only.
 Still open: alert read/write functions (with the drift job); whether the Hugging Face Space gets persistent storage, without which `/data` is wiped on restart.
+
+## 2026-10-15
+Completed Milestone 2.2 (FastAPI app): `backend/app.py` serves `/health`, `/chat`, `/features/recent` and `/features/stats`. The model and SAE load once in the lifespan; model work runs in a threadpool behind a lock, because the fixed seed (`torch.manual_seed(0)`) is process-wide. Added `storage.hits_for_requests` for `/features/recent`. Tests inject a fake engine through `create_app`: 41 tests pass, the backend ones in about 3 s. A real `uvicorn` + `curl` run answered every endpoint; empty prompts get 422.
+Surprise: generation dominates the cost. On one curl request: 586 ms to generate 40 tokens, 23 ms to extract features. The seeded reply was identical across two separate processes.
+Still open: the lock serialises all `/chat` requests (about 0.6 s each in the one request measured), so throughput is not yet measured and the traffic generator should be paced with this in mind.

@@ -3,13 +3,16 @@ name = "feature-monitor"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.143.1",
     "sae-lens>=6.54.0",
     "torch>=2.14.1",
     "transformer-lens>=3.9.0",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "ipykernel>=7.4.0",
     "nbconvert>=7.17.1",
     "pytest>=9.1.1",

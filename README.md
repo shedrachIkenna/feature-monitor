@@ -15,6 +15,17 @@ uv run pytest
 
 The first test run downloads GPT-2 Small and its SAE. `make test-fast` skips the tests that need them.
 
+Run the API (loads the model once at startup):
+
+```sh
+uv run uvicorn backend.app:app
+curl -X POST localhost:8000/chat -H 'content-type: application/json' -d '{"prompt": "Hello"}'
+```
+
+Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /features/stats?minutes=60`.
+
+GPT-2 Small is not a chat model, so `/chat` replies are poor continuations of the prompt. That is expected: reply quality is not what we measure. The replies use a fixed seed (40 new tokens at most), so the same prompt always gets the same reply.
+
 See [docs/design.md](docs/design.md) for the design.
 
 ## Folder Layout
