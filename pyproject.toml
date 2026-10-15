@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "datasets>=5.1.0",
     "fastapi>=0.143.1",
+    "pyyaml>=6.0.3",
     "sae-lens>=6.54.0",
     "torch>=2.14.1",
     "transformer-lens>=3.9.0",

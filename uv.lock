@@ -808,6 +808,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "datasets" },
     { name = "fastapi" },
+    { name = "pyyaml" },
     { name = "sae-lens" },
     { name = "torch" },
     { name = "transformer-lens" },
@@ -827,6 +828,7 @@ dev = [
 requires-dist = [
     { name = "datasets", specifier = ">=5.1.0" },
     { name = "fastapi", specifier = ">=0.143.1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sae-lens", specifier = ">=6.54.0" },
     { name = "torch", specifier = ">=2.14.1" },
     { name = "transformer-lens", specifier = ">=3.9.0" },

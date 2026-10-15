@@ -1,0 +1,11 @@
+# 0% shift for 500 requests, linear ramp to 30% by request 1,500, then held at 30%.
+name: medical_ramp
+seed: 42
+total_requests: 2000
+normal_pool: normal_test
+shift_pool: shift_medical
+schedule:
+  - {at: 0, shift: 0.0}
+  - {at: 500, shift: 0.0}
+  - {at: 1500, shift: 0.30}
+  - {at: 2000, shift: 0.30}

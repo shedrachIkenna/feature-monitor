@@ -1,0 +1,9 @@
+# Normal traffic only: the false-alarm control.
+name: normal_only
+seed: 42
+total_requests: 2000
+normal_pool: normal_test
+shift_pool: null
+schedule:
+  - {at: 0, shift: 0.0}
+  - {at: 2000, shift: 0.0}
