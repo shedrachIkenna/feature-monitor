@@ -398,7 +398,7 @@ earlier log entry called that the explanation, but it is actually example text u
 score explanations. The strict parser fixed both problems, and the 8 bad entries were
 re-fetched.
 
-**Choosing between explanations (2026-10-13).** Each feature we checked had two
+**Choosing between explanations (2026-10-15).** Each feature we checked had two
 explanations. The first, by gpt-3.5-turbo, is never scored. The second, by gpt-4o-mini,
 has two `eleuther_fuzz` scores. Switching to "highest-scored" changed 13 of the 14 cached
 labels, and for feature 23838 it would have picked *"questions or discussions about
@@ -540,7 +540,7 @@ prompts and 0/10 coding prompts.
   Untested; that is what the real experiment is for.
 - **This conclusion does not depend on labels.** It rests on what the features *did*:
   five disappeared when only phrasing was held constant. The labels were re-chosen on
-  2026-10-13 (section 3.4) and 5 of the 6 changed wording; all still describe phrasing
+  2026-10-15 (section 3.4) and 5 of the 6 changed wording; all still describe phrasing
   except 18171.
 - **Limits:** 20 prompts per set, one layer, hand-written prompts, labels that may be
   wrong. This is a quick check, not evidence of anything general.
