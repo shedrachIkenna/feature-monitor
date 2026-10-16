@@ -15,29 +15,52 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 ## How it works
 1. For each request, read GPT-2 Small's activations at layer 8 (`blocks.8.hook_resid_pre`).
 2. Encode them with a sparse autoencoder (SAE, `gpt2-small-res-jb`, 24,576 features).
-3. Store the request's 20 most active features.
-4. On a schedule, compare recent feature frequencies with a baseline window; alert on drift.
-5. Run the same drift test on prompt sentence embeddings, as the comparison baseline.
+3. Store the request's 20 most active features (`backend/storage.py`, schema in
+   [schema.md](schema.md)).
+4. Every 60 seconds, a drift job scores the latest 500 requests against a fixed baseline
+   and stores the score; a score above the threshold raises an alert (`monitor/job.py`).
+5. The same job runs the same test on prompt sentence embeddings, as the comparison baseline.
+6. A dashboard served at `/` shows scores, alerts and drifting features; its Playground page
+   runs single prompts without storing them (`POST /chat` with `record: false`).
+
+## Drift test (decided)
+- **Baseline:** 3,000 prompts sampled (seed 0) from `normal_train`; per feature, how many had
+  it in their top 20 (`monitor/baseline.py`).
+- **Window score:** Jensen-Shannon divergence, in bits, between the baseline's and the window's
+  feature distributions (`monitor/drift.py`).
+- **Which features changed:** a two-proportion z-test per feature, with Benjamini-Hochberg
+  adjustment for testing thousands at once. This is shown to the user only; it does not raise alerts.
+- **Threshold:** the 99th percentile of scores of 1,000 random 500-prompt windows from the
+  ~11,000 `normal_train` prompts not in the baseline (`monitor/calibrate.py`, settings in
+  `monitor/config.yaml`).
+- **Embedding detector:** `all-MiniLM-L6-v2` embeddings, each prompt assigned to the nearest of
+  50 k-means clusters fitted on the same 3,000 prompts; the cluster is scored exactly like a
+  feature list (`monitor/embed_drift.py`). A stronger embedding baseline is being tested.
 
 ## Drift scenarios
-All changes are sudden: traffic switches at a known request, so delay can be measured.
-1. Topic change: traffic switches between clearly different subjects (e.g. coding to
-   medical). Closer topics come later.
-2. Style change: the same requests, rewritten casually (slang, typos).
-3. Framing change: the same requests, wrapped in jailbreak-style framing
-   ("pretend you are...").
-4. Model change: prompts stay the same, but a steering vector (a fixed direction added to
-   the activations) is injected before layer 8, at several strengths.
+Each scenario has 2,000 requests from `normal_test`. Shifted prompts are mixed in **gradually**:
+0% for the first 500 requests, rising linearly to 30% by request 1,500, then held
+(`traffic/scenarios/`, pools described in [datasets.md](datasets.md)).
 
-In scenario 4, prompt embeddings cannot see the change by design. We report it as a test
-of what only internal monitoring can see, not as a win over embeddings.
+| Scenario | Shift pool | Status |
+|---|---|---|
+| `normal_only` | none: the false-alarm control | Built |
+| `medical_ramp` | MedQuAD health questions: topic **and** style change | Built |
+| `medical_nowhat_ramp` | the same without "What…" openers, to separate topic from one wording cue | Built (offline evaluation only) |
+| `new_topic_ramp` | held-out Bitext category (ACCOUNT): topic change, same style | Built |
+| `injection_ramp` | deepset prompt injections: framing change | Built |
+| Style change | the same requests rewritten casually (slang, typos) | Planned, not built |
+| Model change | same prompts, a steering vector added before layer 8 at several strengths | Planned, not built |
+
+In the model-change scenario, prompt embeddings cannot see the change by design. We will
+report it as a test of what only internal monitoring can see, not as a win over embeddings.
 
 ## Success measures
-- Detection rate, delay (in requests after the switch), and false alarms (alerts on
-  unchanged traffic).
-- Fair comparison: each method's threshold is tuned to the same false alarm rate on
-  unchanged traffic, then detection and delay are compared at that setting.
-- Every scenario is run with 5 fixed random seeds; we report the spread.
+- Detection rate, delay (requests after the shift starts until the first alert), and false
+  alarms (alerts on `normal_only`), both per window and per run.
+- Fair comparison: thresholds are swept over percentiles of each detector's calibration
+  scores, so the detectors are compared at equal false-alarm rates (`eval/multiseed.py`).
+- Every scenario is replayed offline with 10 fixed seeds; we report the spread.
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
   method it favours. Null and negative results are reported.
 
@@ -47,12 +70,13 @@ of what only internal monitoring can see, not as a win over embeddings.
 - Automatic actions such as rollback or blocking; the system only alerts.
 - Embedding model responses.
 - Load testing at production scale.
-- Not yet: gradual drift, and models other than GPT-2 Small (Gemma 2 2B in Milestone 7).
+- Not yet: sudden switches (all scenarios are ramps), and models other than GPT-2 Small
+  (Gemma 2 2B in Milestone 7).
 
 ## Open questions
-- Which drift test (for example chi-squared on feature counts, or a distance between
-  frequency distributions), and what baseline and recent window sizes?
-- What false alarm rate to match the methods at?
+- Would a stronger embedding detector (more clusters, or a test on the embeddings themselves)
+  close the gap to the SAE detector?
+- Is one threshold crossing enough to alert, or should alerts need several in a row? At the
+  saved thresholds, 2 of 10 normal 2,000-request runs raise a false alarm for each detector.
 - Which steering direction and strengths, and at which layer?
-- Should operators treat style-only changes (scenarios 2 and 3) as real alerts?
-- Which sentence embedding model to use for the baseline?
+- Should operators treat style-only changes as real alerts?

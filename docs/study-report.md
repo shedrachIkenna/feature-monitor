@@ -4,6 +4,12 @@ Prepared 2026-10-11, last refreshed 2026-10-15 after Milestone 1.4. Covers Miles
 (scope and setup), Milestones 1.1 to 1.4 (model and SAE, extraction, labels, sanity check),
 the review fixes, and the supporting experiments.
 
+> **Out of date beyond Milestone 1.4 (checked 2026-10-16).** Everything after that (traffic
+> pools, baseline, drift test, calibration, the embedding detector, storage, API, drift job,
+> dashboard, first run and multi-seed evaluation) is not covered here yet; see
+> [log.md](log.md). Sections 1.8 and 1.9 ("not chosen yet") and Part 6 are superseded by
+> [design.md](design.md). A full refresh is pending.
+
 Every number in this report was either printed by code in this repository or measured
 again while writing it. Where something has not been tested, the report says so.
 

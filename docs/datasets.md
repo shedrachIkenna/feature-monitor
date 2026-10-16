@@ -58,6 +58,13 @@ function word. This rule is rough:
 - It keeps a few English injections that start with German topic keywords, e.g.
   "Datenschutz Europa".
 
+## Derived pool (evaluation only)
+
+`shift_medical_nowhat` is `shift_medical` without the prompts whose first word starts with
+"what" (any case): 14,202 of 43,448 remain, so 67% were removed. About 2% of normal prompts
+start that way, so this pool separates the medical topic from that wording cue. It is built
+in memory by `eval/multiseed.py` (`load_pools`) and never written to `traffic/data/`.
+
 ## Known limits
 
 - Bitext and MedQuAD are synthetic or templated, not real user traffic.

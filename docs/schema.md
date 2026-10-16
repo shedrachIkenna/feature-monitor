@@ -32,8 +32,8 @@ let the database enforce one hit per rank per request.
 
 - Timestamps are stored as fixed-width UTC strings (`2026-10-15T12:00:00.000000Z`), so
   comparing them as text gives the same order as comparing them as times.
-- Dashboard buckets are 5-minute slots aligned to the UTC clock; SQLite rounds each
-  `created_at` down with `strftime('%s', ...)`.
+- Dashboard buckets are 1- or 5-minute slots (`bucket_minutes`) aligned to the UTC clock;
+  SQLite rounds each `created_at` down with `strftime('%s', ...)`.
 - Time windows are half-open, `[since, until)`, so back-to-back windows never count a
   request twice. `request_count` gives the denominator for feature frequencies.
 - Deployment: on a Hugging Face Space only `/data` survives restarts, and only when

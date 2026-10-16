@@ -49,3 +49,6 @@ Fix random seeds in anything experimental, so results can be regenerated.
 Type hints on public functions. Short docstrings. No dead code.
 When you finish a task, add 3 to 5 lines to docs/log.md: what was done, what
 surprised us, what is still open.
+Before committing a finished task, run /sync-docs: check docs/design.md, docs/schema.md,
+docs/study-report.md, docs/datasets.md and README.md against what changed, and update any
+that no longer match. Say which docs were changed, or that none needed changes.
