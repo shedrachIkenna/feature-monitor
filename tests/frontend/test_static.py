@@ -7,7 +7,7 @@ from backend import storage
 from backend.app import FRONTEND_DIR, create_app
 from tests.backend.test_app import FakeEngine
 
-PAGES = ["index.html", "features.html"]
+PAGES = ["index.html", "features.html", "playground.html"]
 
 
 @pytest.fixture
@@ -60,6 +60,8 @@ def test_root_serves_the_overview(client) -> None:
         ("/common.js", "text/javascript"),
         ("/overview.js", "text/javascript"),
         ("/features.js", "text/javascript"),
+        ("/playground.html", "text/html"),
+        ("/playground.js", "text/javascript"),
     ],
 )
 def test_frontend_files_are_served(client, path, content_type) -> None:
@@ -74,7 +76,11 @@ def test_api_routes_still_win_over_static_files(client) -> None:
     assert client.get("/no-such-page").status_code == 404
 
 
-@pytest.mark.parametrize("page", PAGES)
+CHART_PAGES = ["index.html", "features.html"]
+CHARTJS = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
+
+
+@pytest.mark.parametrize("page", CHART_PAGES)
 def test_every_chart_has_a_title(page) -> None:
     parser = Sections()
     parser.feed((FRONTEND_DIR / page).read_text())
@@ -88,5 +94,24 @@ def test_pages_load_only_local_scripts_and_chartjs_from_cdnjs(page) -> None:
     parser = Sections()
     parser.feed((FRONTEND_DIR / page).read_text())
     remote = [s for s in parser.scripts if "://" in s]
-    assert remote == ["https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"]
+    assert remote == ([CHARTJS] if page in CHART_PAGES else [])
     assert all((FRONTEND_DIR / s).is_file() for s in parser.scripts if s not in remote)
+
+
+@pytest.mark.parametrize("page", PAGES)
+def test_every_page_links_to_all_three_pages(page) -> None:
+    html = (FRONTEND_DIR / page).read_text()
+    for target in ['href="./"', 'href="features.html"', 'href="playground.html"']:
+        assert target in html
+
+
+def test_playground_sends_unrecorded_chat_requests() -> None:
+    script = (FRONTEND_DIR / "playground.js").read_text()
+    assert "record: false" in script
+
+
+def test_how_to_read_panel_has_at_most_four_lines() -> None:
+    html = (FRONTEND_DIR / "index.html").read_text()
+    panel = html.split('class="card howto"')[1].split("</aside>")[0]
+    assert "How to read this" in panel
+    assert 1 <= panel.count("<li>") <= 4

@@ -1,4 +1,4 @@
-// Shared helpers for both dashboard pages: API calls, the time-range picker, formatting,
+// Shared helpers for the dashboard pages: API calls, the time-range picker, formatting,
 // chart styling and safe DOM building (prompts are user text, so never use innerHTML for them).
 
 const REFRESH_MS = 30000;
@@ -34,16 +34,20 @@ const TERMS = {
   ratio: "Ratio: current rate divided by normal rate. 2.0× means twice as common as normal.",
   feature:
     "Feature: one direction in the model's internal activations that the sparse autoencoder learned; its label comes from Neuronpedia.",
+  activation:
+    "Activation: how strongly the feature fired on the prompt. Scales differ between features, so compare bars within one prompt, not across features' typical sizes.",
   window: "Window: the latest 500 requests, which every drift check compares against normal traffic.",
 };
 
 /** Fetch JSON from the API; throws with the server's message on an error status. */
-async function api(path) {
-  const response = await fetch(path);
+async function api(path, init) {
+  const response = await fetch(path, init);
   if (!response.ok) {
     let detail = response.statusText;
     try {
-      detail = (await response.json()).detail || detail;
+      const body = await response.json();
+      // Validation errors (422) carry a list of problems instead of one message.
+      detail = Array.isArray(body.detail) ? body.detail.map((d) => d.msg).join("; ") : body.detail || detail;
     } catch (_) {
       // Not JSON; keep the status text.
     }

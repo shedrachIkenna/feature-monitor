@@ -183,6 +183,18 @@ def test_feature_rejects_negative_id(client) -> None:
     assert client.get("/dashboard/feature/-1").status_code == 422
 
 
-@pytest.mark.parametrize("path", ["/dashboard/drifting", "/dashboard/feature/11"])
+def test_labels_returns_each_requested_feature_once(client) -> None:
+    labels = client.get("/dashboard/labels", params={"ids": "11,3,11"}).json()
+    assert labels == {"11": "label 11", "3": "label 3"}
+
+
+@pytest.mark.parametrize("ids", ["", "1,,2", "-1", "a", ",".join(str(i) for i in range(21))])
+def test_labels_rejects_bad_or_too_many_ids(client, ids) -> None:
+    assert client.get("/dashboard/labels", params={"ids": ids}).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "path", ["/dashboard/drifting", "/dashboard/feature/11", "/dashboard/labels?ids=11"]
+)
 def test_sae_endpoints_need_the_drift_job(client_without_job, path) -> None:
     assert client_without_job.get(path).status_code == 503

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature Monitor</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Feature Monitor</h1>
+      <nav>
+        <a href="./">Overview</a>
+        <a href="features.html">Features</a>
+        <a href="playground.html" aria-current="page">Playground</a>
+      </nav>
+    </header>
+    <main>
+      <section class="card">
+        <h2>Try a prompt</h2>
+        <p class="sub">
+          See which SAE <span data-term="feature">features</span> one prompt switches on. Playground
+          prompts are not monitored: they are never stored, so they cannot move the drift scores or
+          raise alerts.
+        </p>
+        <form id="form" class="ask">
+          <label for="prompt" class="visually-hidden">Prompt</label>
+          <textarea id="prompt" rows="3" maxlength="2000" required placeholder="What causes inflammation of the colon?"></textarea>
+          <button type="submit" id="submit">Run</button>
+        </form>
+        <div id="status"></div>
+      </section>
+
+      <section class="card" id="result" hidden>
+        <h2>The prompt's top 20 features, strongest first</h2>
+        <p class="sub">
+          Bar length is the feature's <span data-term="activation">activation</span>, relative to the
+          strongest feature for this prompt. Click a feature to see how often it appears in
+          monitored traffic.
+        </p>
+        <ol class="bars" id="bars"></ol>
+        <h3>Model reply</h3>
+        <p class="sub">
+          GPT-2 Small is not a chat model, so the reply is only a continuation of the prompt.
+          The features above come from the prompt, not the reply.
+        </p>
+        <p class="reply" id="reply"></p>
+      </section>
+    </main>
+    <script src="common.js"></script>
+    <script src="playground.js"></script>
+  </body>
+</html>

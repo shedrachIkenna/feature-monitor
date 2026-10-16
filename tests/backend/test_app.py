@@ -63,6 +63,18 @@ def test_chat_returns_reply_and_stores_request(client) -> None:
     )
 
 
+def test_chat_with_record_false_answers_but_stores_nothing(client) -> None:
+    response = client.post("/chat", json={"prompt": "playground", "record": False})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] == "echo: playground"
+    assert body["request_id"] is None
+    assert [f["feature_id"] for f in body["top_features"]] == [7, 2]
+    assert storage.recent_requests() == []
+    assert client.get("/features/stats").json()["request_count"] == 0
+
+
 @pytest.mark.parametrize("prompt", ["", "x" * 2001])
 def test_chat_rejects_prompt_outside_length_limits(client, prompt) -> None:
     assert client.post("/chat", json={"prompt": prompt}).status_code == 422

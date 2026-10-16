@@ -12,10 +12,21 @@
       <nav>
         <a href="./" aria-current="page">Overview</a>
         <a href="features.html">Features</a>
+        <a href="playground.html">Playground</a>
       </nav>
       <label class="controls">Time range <select id="range"></select></label>
     </header>
     <main>
+      <aside class="card howto" aria-labelledby="howto-title">
+        <h2 id="howto-title">How to read this</h2>
+        <ol>
+          <li>Each solid line is a drift score: how different the latest 500 requests look from normal traffic.</li>
+          <li>The dashed line is that detector's alarm level; a red point is a check that crossed it.</li>
+          <li>Compare each line only with its own dashed line; the two detectors use different scales.</li>
+          <li>An alert means "traffic changed", not "something is wrong": open Features to see what changed.</li>
+        </ol>
+      </aside>
+
       <section class="card">
         <h2>Drift score over time, per detector</h2>
         <p class="sub">

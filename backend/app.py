@@ -4,7 +4,8 @@ The model work sits behind an `Engine`, so tests can build the app with a fake o
 `create_app` and never download GPT-2 or the SAE. A background scheduler runs the drift job
 (monitor/job.py) every check_interval_seconds and stores each check's scores and any alerts.
 The /dashboard endpoints (backend/dashboard.py) read those back for the frontend, which is served
-as static files at / after every API route, so the API paths always win.
+as static files at / after every API route, so the API paths always win. The playground page sends
+`record: false`, so its prompts are answered but never stored as monitored traffic.
 """
 
 from __future__ import annotations
@@ -36,6 +37,9 @@ MAX_NEW_TOKENS = 40
 SEED = 0
 # Set to "0" to skip feature extraction, e.g. to measure its latency overhead.
 EXTRACT_ENV = "FEATURE_MONITOR_EXTRACT"
+# The playground labels one prompt's top 20 features; uncached labels each cost a Neuronpedia call.
+MAX_LABEL_IDS = 20
+LABEL_IDS_PATTERN = r"^\d+(,\d+)*$"
 FRONTEND_DIR = FilePath(__file__).resolve().parent.parent / "frontend"
 
 
@@ -103,6 +107,9 @@ class GPT2Engine:
 class ChatRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=2000)
     scenario: str | None = None
+    # False for playground prompts: answered and encoded, but never stored, so they cannot enter
+    # the drift job's window, the scenario results, or the dashboard's example prompts.
+    record: bool = True
 
 
 class FeatureOut(BaseModel):
@@ -112,7 +119,7 @@ class FeatureOut(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    request_id: int
+    request_id: int | None
     top_features: list[FeatureOut]
 
 
@@ -163,16 +170,18 @@ def create_app(
     async def chat(body: ChatRequest, request: Request) -> ChatResponse:
         engine: Engine = request.app.state.engine
         result = await run_in_threadpool(engine.run, body.prompt)
-        request_id = await run_in_threadpool(
-            storage.save_request,
-            body.prompt,
-            result.reply,
-            engine.model_name,
-            result.hits,
-            result.gen_ms,
-            result.extract_ms,
-            body.scenario,
-        )
+        request_id = None
+        if body.record:
+            request_id = await run_in_threadpool(
+                storage.save_request,
+                body.prompt,
+                result.reply,
+                engine.model_name,
+                result.hits,
+                result.gen_ms,
+                result.extract_ms,
+                body.scenario,
+            )
         return ChatResponse(
             reply=result.reply,
             request_id=request_id,
@@ -225,6 +234,14 @@ def create_app(
         _, detector = sae_detector(request)
         label = detector.describe(feature_id, [], [])
         return dashboard.feature(feature_id, label, hours, check_bucket(bucket_minutes))
+
+    @app.get("/dashboard/labels")
+    def dashboard_labels(request: Request, ids: str = Query(pattern=LABEL_IDS_PATTERN)) -> dict:
+        _, detector = sae_detector(request)
+        feature_ids = list(dict.fromkeys(int(i) for i in ids.split(",")))
+        if len(feature_ids) > MAX_LABEL_IDS:
+            raise HTTPException(422, f"at most {MAX_LABEL_IDS} feature ids")
+        return {str(f): detector.describe(f, [], []) for f in feature_ids}
 
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return app
