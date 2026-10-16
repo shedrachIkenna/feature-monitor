@@ -32,10 +32,12 @@ FROM ${PYTHON_IMAGE} AS runtime
 # Hugging Face Spaces runs containers as uid 1000, so that user owns everything it writes to.
 RUN useradd --create-home --uid 1000 user && mkdir /data && chown user:user /data
 # HF_HUB_OFFLINE: load models from HF_HOME only, never from the network.
+# REQUIRE_RECORD_TOKEN: refuse recorded prompts unless FEATURE_MONITOR_RECORD_TOKEN is set.
 ENV PATH=/app/.venv/bin:$PATH \
     HF_HOME=/app/.cache/huggingface \
     HF_HUB_OFFLINE=1 \
     FEATURE_MONITOR_DB=/data/feature_monitor.db \
+    FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=builder --chown=user:user /app/.venv .venv

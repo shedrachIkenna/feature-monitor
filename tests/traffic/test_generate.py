@@ -6,10 +6,13 @@ import httpx
 import pytest
 
 from traffic.generate import (
+    RECORD_TOKEN_ENV,
+    RECORD_TOKEN_HEADER,
     Scenario,
     build_sequence,
     load_scenario,
     mix_per_block,
+    record_headers,
     send,
     shift_fraction,
 )
@@ -101,3 +104,33 @@ def test_send_posts_each_prompt_with_scenario_tag():
     results = list(send(rows, "medical_ramp", client))
     assert seen == [{"prompt": "hi", "scenario": "medical_ramp"}]
     assert results == [{**rows[0], "status": 200, "request_id": 1}]
+
+
+def test_send_stops_at_the_first_refusal_to_record():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(403, json={"detail": "Recording is disabled on this server."})
+
+    rows = [{"index": i, "pool": "p", "is_shift": False, "prompt": f"p{i}"} for i in range(3)]
+    client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+    with pytest.raises(SystemExit, match="Recording is disabled"):
+        list(send(rows, "medical_ramp", client))
+    assert len(seen) == 1
+
+
+def test_record_headers_send_the_token_only_when_set(monkeypatch):
+    monkeypatch.delenv(RECORD_TOKEN_ENV, raising=False)
+    assert record_headers() == {}
+    monkeypatch.setenv(RECORD_TOKEN_ENV, "s3cret")
+    assert record_headers() == {"X-Record-Token": "s3cret"}
+
+
+def test_record_token_names_match_the_api():
+    from backend import app
+
+    assert (RECORD_TOKEN_ENV, RECORD_TOKEN_HEADER) == (
+        app.RECORD_TOKEN_ENV,
+        app.RECORD_TOKEN_HEADER,
+    )

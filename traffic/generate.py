@@ -9,12 +9,16 @@ when it runs out, so a small pool repeats evenly.
 Every output row records `is_shift`, the ground truth for the evaluation.
 
     uv run python -m traffic.generate traffic/scenarios/medical_ramp.yaml --dry-run
+
+A server that requires a record token (the Docker image does) refuses recorded prompts without
+it; set FEATURE_MONITOR_RECORD_TOKEN to the server's token and it is sent with every request.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -29,6 +33,9 @@ RUNS_DIR = Path(__file__).parent / "runs"
 BLOCK = 100
 BASE_URL = "http://127.0.0.1:8000"
 REQUEST_TIMEOUT_S = 60.0
+# Must match backend/app.py; repeated here so the generator does not import the model stack.
+RECORD_TOKEN_ENV = "FEATURE_MONITOR_RECORD_TOKEN"
+RECORD_TOKEN_HEADER = "X-Record-Token"
 
 
 @dataclass(frozen=True)
@@ -127,10 +134,24 @@ def mix_per_block(scenario: Scenario, rows: list[dict]) -> list[tuple[int, float
     return table
 
 
+def record_headers() -> dict[str, str]:
+    """The record-token header, if FEATURE_MONITOR_RECORD_TOKEN is set."""
+    token = os.environ.get(RECORD_TOKEN_ENV)
+    return {RECORD_TOKEN_HEADER: token} if token else {}
+
+
 def send(rows: list[dict], scenario_name: str, client: httpx.Client) -> Iterator[dict]:
-    """POST each prompt to /chat with the scenario tag, one at a time; yield rows with results."""
+    """POST each prompt to /chat with the scenario tag, one at a time; yield rows with results.
+
+    Stops at the first 403: the server refuses to record, so every later request would fail too.
+    """
     for row in rows:
         response = client.post("/chat", json={"prompt": row["prompt"], "scenario": scenario_name})
+        if response.status_code == 403:
+            raise SystemExit(
+                f"/chat refused to record: {response.json().get('detail')} "
+                f"Set {RECORD_TOKEN_ENV} to the server's token."
+            )
         request_id = response.json()["request_id"] if response.status_code == 200 else None
         yield {**row, "status": response.status_code, "request_id": request_id}
 
@@ -153,7 +174,9 @@ def main() -> None:
 
     with (
         out.open("w", encoding="utf-8") as f,
-        httpx.Client(base_url=args.base_url, timeout=REQUEST_TIMEOUT_S) as client,
+        httpx.Client(
+            base_url=args.base_url, timeout=REQUEST_TIMEOUT_S, headers=record_headers()
+        ) as client,
     ):
         results = iter(rows) if args.dry_run else send(rows, scenario.name, client)
         failed = 0

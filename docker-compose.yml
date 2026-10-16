@@ -5,6 +5,9 @@ services:
     image: feature-monitor:latest
     ports:
       - "7860:7860"
+    environment:
+      # Passed through from your shell; without it the container refuses recorded prompts.
+      - FEATURE_MONITOR_RECORD_TOKEN
     volumes:
       # The SQLite database lives here, so it survives rebuilds and restarts.
       - feature-monitor-data:/data

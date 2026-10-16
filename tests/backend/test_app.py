@@ -8,6 +8,9 @@ from backend import storage
 from backend.app import (
     EXTRACT_ENV,
     MAX_CHAT_QUEUE_ENV,
+    RECORD_TOKEN_ENV,
+    RECORD_TOKEN_HEADER,
+    REQUIRE_RECORD_TOKEN_ENV,
     EngineResult,
     create_app,
     extraction_enabled,
@@ -37,6 +40,8 @@ class FakeEngine:
 def client(tmp_path, monkeypatch):
     """A client for an app with a fake engine and a fresh temporary database."""
     monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    monkeypatch.delenv(RECORD_TOKEN_ENV, raising=False)
+    monkeypatch.delenv(REQUIRE_RECORD_TOKEN_ENV, raising=False)
     FakeEngine.loads = 0
     with TestClient(create_app(FakeEngine)) as test_client:
         yield test_client
@@ -234,3 +239,48 @@ def test_chat_queue_cap_below_one_is_rejected(monkeypatch) -> None:
     monkeypatch.setenv(MAX_CHAT_QUEUE_ENV, "0")
     with pytest.raises(ValueError):
         max_chat_queue()
+
+
+def record_token_client(tmp_path, monkeypatch, token: str | None, required: bool) -> TestClient:
+    """A client for an app whose record-token settings are `token` and `required`."""
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    for name, value in (
+        (RECORD_TOKEN_ENV, token),
+        (REQUIRE_RECORD_TOKEN_ENV, "1" if required else None),
+    ):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    return TestClient(create_app(FakeEngine))
+
+
+@pytest.mark.parametrize(
+    ("token", "required", "header", "expected"),
+    [
+        ("s3cret", False, "s3cret", 200),
+        ("s3cret", True, "s3cret", 200),
+        ("s3cret", False, None, 403),
+        ("s3cret", False, "wrong", 403),
+        (None, True, None, 403),
+        (None, True, "anything", 403),
+        (None, False, None, 200),
+    ],
+)
+def test_recorded_chat_needs_the_record_token_when_one_is_set_or_required(
+    tmp_path, monkeypatch, token, required, header, expected
+) -> None:
+    headers = {RECORD_TOKEN_HEADER: header} if header else {}
+    with record_token_client(tmp_path, monkeypatch, token, required) as client:
+        response = client.post("/chat", json={"prompt": "hi"}, headers=headers)
+
+        assert response.status_code == expected
+        assert len(storage.recent_requests()) == (1 if expected == 200 else 0)
+
+
+def test_unrecorded_chat_never_needs_the_record_token(tmp_path, monkeypatch) -> None:
+    with record_token_client(tmp_path, monkeypatch, "s3cret", True) as client:
+        response = client.post("/chat", json={"prompt": "hi", "record": False})
+
+        assert response.status_code == 200
+        assert storage.recent_requests() == []
