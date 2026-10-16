@@ -1,0 +1,269 @@
+/* Neutral greys throughout; --accent (red) is used only for alerts. */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6f6d68;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --hover: rgba(11, 11, 11, 0.04);
+  --series-1: #2b2b29;
+  --series-2: #8a8882;
+  --bars: #b9b7af;
+  --accent: #c62f2f;
+  --accent-wash: rgba(198, 47, 47, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #9a988f;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --hover: rgba(255, 255, 255, 0.05);
+    --series-1: #ecebe6;
+    --series-2: #8f8d86;
+    --bars: #55544f;
+    --accent: #e66767;
+    --accent-wash: rgba(230, 103, 103, 0.12);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #9a988f;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --hover: rgba(255, 255, 255, 0.05);
+  --series-1: #ecebe6;
+  --series-2: #8f8d86;
+  --bars: #55544f;
+  --accent: #e66767;
+  --accent-wash: rgba(230, 103, 103, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+header h1 {
+  margin: 0;
+  font-size: 17px;
+}
+nav {
+  display: flex;
+  gap: 4px;
+}
+nav a {
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+nav a:hover {
+  background: var(--hover);
+}
+nav a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--hover);
+}
+.controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+}
+.card h2 {
+  margin: 0 0 2px;
+  font-size: 16px;
+}
+.card .sub {
+  margin: 0 0 12px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.chart {
+  position: relative;
+  height: 300px;
+}
+.chart.small {
+  height: 140px;
+}
+.status {
+  color: var(--muted);
+  font-size: 14px;
+}
+.error {
+  color: var(--accent);
+}
+.updated {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+/* A term with a one-line explanation on hover (and on focus for keyboard users). */
+.term {
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* Alerts: the one place the accent colour appears. */
+.alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.alert {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-wash);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.alert .head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.alert .when {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.alert .tag {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+.alert ol {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+/* Tables scroll sideways inside their own box on narrow screens, never the page. */
+.table-wrap {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+th,
+td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--grid);
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  color: var(--ink-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+td.label {
+  min-width: 220px;
+}
+.id {
+  color: var(--muted);
+  font-size: 13px;
+}
+tbody tr {
+  cursor: pointer;
+}
+tbody tr:hover,
+tbody tr:focus {
+  background: var(--hover);
+  outline: none;
+}
+tbody tr[aria-selected="true"] {
+  background: var(--hover);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+.prompts {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+.prompts .meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+a {
+  color: inherit;
+}
+
+@media (max-width: 600px) {
+  .controls {
+    margin-left: 0;
+    width: 100%;
+  }
+  .chart {
+    height: 240px;
+  }
+  .card {
+    padding: 12px;
+  }
+}

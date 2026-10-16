@@ -66,7 +66,7 @@ def client_without_job(tmp_path, monkeypatch):
 
 
 def test_bucket_range_covers_the_hours_up_to_now() -> None:
-    buckets = dashboard.bucket_range(1, NOW)
+    buckets = dashboard.bucket_range(1, NOW, 300)
     assert buckets[0] == int((T0 - timedelta(minutes=50)).timestamp())  # 11:12 rounds to 11:10
     assert buckets[-1] == int((T0 + timedelta(minutes=10)).timestamp())
     assert len(buckets) == 13
@@ -91,6 +91,25 @@ def test_timeline_fills_every_bucket_with_the_highest_score(client) -> None:
     assert buckets["12:05"]["embedding"] == {"score": 0.2, "threshold": 0.3, "alert": False}
     assert buckets["12:10"]["request_count"] == 0
     assert buckets["12:10"]["sae"]["score"] is None
+
+
+def test_timeline_with_one_minute_buckets_keeps_checks_apart(client) -> None:
+    body = client.get("/dashboard/timeline", params={"hours": 1, "bucket_minutes": 1}).json()
+
+    assert body["bucket_minutes"] == 1
+    assert body["since"] == "2026-10-15T11:12:00.000000Z"
+    buckets = {b["start"][11:16]: b for b in body["buckets"]}
+    assert len(buckets) == 61
+    # The 12:07 and 12:08 checks share a 5-minute bucket but get one minute each here.
+    assert buckets["12:07"]["sae"]["score"] == 0.5
+    assert buckets["12:08"]["sae"]["score"] == 0.2
+    assert buckets["12:06"]["request_count"] == 10
+    assert buckets["12:01"]["request_count"] == 10
+
+
+@pytest.mark.parametrize("path", ["/dashboard/timeline", "/dashboard/feature/11"])
+def test_unsupported_bucket_size_is_rejected(client, path) -> None:
+    assert client.get(path, params={"bucket_minutes": 2}).status_code == 422
 
 
 def test_timeline_works_without_a_job(client_without_job) -> None:
@@ -141,6 +160,16 @@ def test_feature_gives_rate_per_bucket_and_latest_strong_prompts(client) -> None
     prompts = body["strong_prompts"]
     assert [p["prompt"] for p in prompts] == ["shift 9", "shift 8", "shift 7", "shift 6", "shift 5"]
     assert (prompts[0]["rank"], prompts[0]["activation"]) == (1, 10.0)
+
+
+def test_feature_with_one_minute_buckets(client) -> None:
+    params = {"hours": 1, "bucket_minutes": 1}
+    body = client.get("/dashboard/feature/11", params=params).json()
+
+    buckets = {b["start"][11:16]: b for b in body["buckets"]}
+    assert (body["bucket_minutes"], len(buckets)) == (1, 61)
+    assert (buckets["12:06"]["hits"], buckets["12:06"]["rate"]) == (10, 1000.0)
+    assert buckets["12:05"]["rate"] is None
 
 
 def test_feature_ranked_below_top_five_has_no_strong_prompts(client) -> None:

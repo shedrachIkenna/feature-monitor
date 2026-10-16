@@ -3,7 +3,8 @@
 The model work sits behind an `Engine`, so tests can build the app with a fake one via
 `create_app` and never download GPT-2 or the SAE. A background scheduler runs the drift job
 (monitor/job.py) every check_interval_seconds and stores each check's scores and any alerts.
-The /dashboard endpoints (backend/dashboard.py) read those back for the frontend.
+The /dashboard endpoints (backend/dashboard.py) read those back for the frontend, which is served
+as static files at / after every API route, so the API paths always win.
 """
 
 from __future__ import annotations
@@ -15,12 +16,14 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path as FilePath
 from typing import Protocol
 
 import torch
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Path, Query, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend import dashboard, storage
@@ -33,6 +36,7 @@ MAX_NEW_TOKENS = 40
 SEED = 0
 # Set to "0" to skip feature extraction, e.g. to measure its latency overhead.
 EXTRACT_ENV = "FEATURE_MONITOR_EXTRACT"
+FRONTEND_DIR = FilePath(__file__).resolve().parent.parent / "frontend"
 
 
 def extraction_enabled() -> bool:
@@ -200,8 +204,11 @@ def create_app(
         return storage.list_alerts(limit)
 
     @app.get("/dashboard/timeline")
-    def dashboard_timeline(hours: int = Query(24, ge=1, le=168)) -> dict:
-        return dashboard.timeline(hours)
+    def dashboard_timeline(
+        hours: int = Query(24, ge=1, le=168),
+        bucket_minutes: int = Query(dashboard.DEFAULT_BUCKET_MINUTES),
+    ) -> dict:
+        return dashboard.timeline(hours, check_bucket(bucket_minutes))
 
     @app.get("/dashboard/drifting")
     def dashboard_drifting(request: Request, limit: int = Query(10, ge=1, le=100)) -> dict:
@@ -213,11 +220,21 @@ def create_app(
         request: Request,
         feature_id: int = Path(ge=0),
         hours: int = Query(24, ge=1, le=168),
+        bucket_minutes: int = Query(dashboard.DEFAULT_BUCKET_MINUTES),
     ) -> dict:
         _, detector = sae_detector(request)
-        return dashboard.feature(feature_id, detector.describe(feature_id, [], []), hours)
+        label = detector.describe(feature_id, [], [])
+        return dashboard.feature(feature_id, label, hours, check_bucket(bucket_minutes))
 
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return app
+
+
+def check_bucket(bucket_minutes: int) -> int:
+    """Return bucket_minutes if the dashboard supports it; 422 otherwise."""
+    if bucket_minutes not in dashboard.BUCKET_MINUTES:
+        raise HTTPException(422, f"bucket_minutes must be one of {dashboard.BUCKET_MINUTES}")
+    return bucket_minutes
 
 
 def sae_detector(request: Request) -> tuple[DriftJob, Detector]:

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature Monitor</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Feature Monitor</h1>
+      <nav>
+        <a href="./">Overview</a>
+        <a href="features.html" aria-current="page">Features</a>
+      </nav>
+      <label class="controls">Time range <select id="range"></select></label>
+    </header>
+    <main>
+      <section class="card">
+        <h2>SAE features that changed most in the latest 500 requests</h2>
+        <p class="sub">
+          Each row is one <span data-term="feature">feature</span>, ranked by how sure the test is
+          that its <span data-term="rate">rate</span> changed (strongest evidence first). Click a
+          row to see that feature over time and the prompts it fired on.
+          <span id="window-info"></span>
+        </p>
+        <div id="table-status"></div>
+        <div id="tables"></div>
+      </section>
+
+      <section class="card" id="detail" hidden>
+        <h2 id="detail-title">How often the selected feature appears over time</h2>
+        <p class="sub" id="detail-sub"></p>
+        <div class="chart"><canvas id="feature-rate" aria-label="Feature rate over time"></canvas></div>
+        <div id="detail-status"></div>
+        <h3>Example prompts</h3>
+        <p class="sub" id="prompts-sub"></p>
+        <ol class="prompts" id="prompts"></ol>
+      </section>
+      <p class="updated" id="updated"></p>
+    </main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
+      integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="common.js"></script>
+    <script src="features.js"></script>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature Monitor</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Feature Monitor</h1>
+      <nav>
+        <a href="./" aria-current="page">Overview</a>
+        <a href="features.html">Features</a>
+      </nav>
+      <label class="controls">Time range <select id="range"></select></label>
+    </header>
+    <main>
+      <section class="card">
+        <h2>Drift score over time, per detector</h2>
+        <p class="sub">
+          Higher means the latest 500 requests look less like normal traffic. Solid line:
+          <span data-term="drift">drift score</span>. Dashed line: that detector's
+          <span data-term="threshold">threshold</span>. Red points: checks that raised an alert.
+          The two detectors measure different things, so compare each line with its own dashed
+          line, not with each other.
+        </p>
+        <p class="sub">
+          <strong>SAE features</strong> (darker line): <span id="help-sae"></span><br />
+          <strong>Sentence embeddings</strong> (lighter line): <span id="help-embedding"></span>
+        </p>
+        <div class="chart"><canvas id="scores" aria-label="Drift score per detector over time"></canvas></div>
+        <div id="scores-status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Requests per time step</h2>
+        <p class="sub">How many prompts the model answered in each step of the chart above.</p>
+        <div class="chart small"><canvas id="volume" aria-label="Requests per time step"></canvas></div>
+      </section>
+
+      <section class="card">
+        <h2>Alerts in this time range, newest first</h2>
+        <p class="sub">
+          One entry per check that crossed its threshold, with the features (SAE) or topic clusters
+          (embeddings) that changed most in that check's
+          <span data-term="window">window</span>.
+        </p>
+        <div id="alerts-status"></div>
+        <ul class="alerts" id="alerts"></ul>
+      </section>
+      <p class="updated" id="updated"></p>
+    </main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
+      integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="common.js"></script>
+    <script src="overview.js"></script>
+  </body>
+</html>
