@@ -22,6 +22,9 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 5. The same job scores the same window from prompt sentence embeddings, as the comparison baseline.
 6. A dashboard served at `/` shows scores, alerts and drifting features; its Playground page
    runs single prompts without storing them (`POST /chat` with `record: false`).
+7. It ships as one CPU-only Docker image on port 7860 (`Dockerfile`), with the models and the
+   baseline features' labels downloaded at build time (`monitor/prefetch.py`) and the
+   database under `/data`.
 
 ## Drift test (decided)
 - **Baseline:** 3,000 prompts sampled (seed 0) from `normal_train`; per feature, how many had

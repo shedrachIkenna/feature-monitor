@@ -38,4 +38,5 @@ let the database enforce one hit per rank per request.
 - Time windows are half-open, `[since, until)`, so back-to-back windows never count a
   request twice. `request_count` gives the denominator for feature frequencies.
 - Deployment: on a Hugging Face Space only `/data` survives restarts, and only when
-  persistent storage is enabled; set `FEATURE_MONITOR_DB=/data/feature_monitor.db`.
+  persistent storage is enabled. The Docker image sets
+  `FEATURE_MONITOR_DB=/data/feature_monitor.db`; `docker-compose.yml` mounts a volume there.

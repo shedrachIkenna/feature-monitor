@@ -62,6 +62,46 @@ The Playground: the top 20 features for one prompt, typed by hand and not stored
 
 GPT-2 Small is not a chat model, so `/chat` replies are poor continuations of the prompt. That is expected: reply quality is not what we measure. The replies use a fixed seed (40 new tokens at most), so the same prompt always gets the same reply.
 
+### Run in Docker
+
+The image runs on CPU only and needs no network to start: GPT-2, the SAE, the MiniLM embedder
+and the Neuronpedia labels of the 2,488 baseline features are downloaded while the image is
+built. Labels of other features are fetched on first use when the network is reachable, and
+show "unlabelled" otherwise.
+
+```sh
+docker compose up --build
+```
+
+The first build takes several minutes. Then open <http://localhost:7860/>;
+`curl localhost:7860/health` reports `"device": "cpu"`. The database is
+`/data/feature_monitor.db` on the `feature-monitor-data` volume, so it survives
+`docker compose down` and rebuilds (`docker compose down -v` deletes it). The app runs as a
+non-root user with uid 1000, as Hugging Face Spaces requires.
+
+On Linux the lock file installs the CPU-only build of torch from the PyTorch index
+(`[tool.uv.sources]` in `pyproject.toml`); macOS keeps PyPI's torch. PyPI's Linux torch
+brings several GB of NVIDIA CUDA libraries that a CPU container cannot use. On this Mac the
+image went from 11.8 GB to 4.06 GB on disk (4.22 GB to 1.22 GB compressed).
+
+**Apple Silicon and amd64.** A Mac with an M-series chip is `arm64` (also called aarch64), so
+Docker builds `linux/arm64` images by default. Most servers, including Hugging Face Spaces,
+are `linux/amd64` (x86_64). The two run different machine code, so an image built for one
+does not run natively on the other. To build for the host:
+
+```sh
+docker buildx build --platform linux/amd64 -t feature-monitor:amd64 --load .
+docker buildx build --platform linux/amd64,linux/arm64 -t <registry>/feature-monitor --push .
+```
+
+The first command builds an amd64 image on the Mac by emulating an x86 CPU, which is slower
+than a native build: here about 32 minutes against about 6 for arm64 (not a clean comparison:
+the arm64 build reused cached downloads), and the emulated container took 31 seconds to start
+against 6 to 9 natively. The second builds both in one multi-platform image
+and pushes it to a registry; whoever pulls it gets the variant that matches their machine.
+A Hugging Face Docker Space builds the `Dockerfile` itself on amd64, so pushing an image is
+not needed there.
+
 See [docs/design.md](docs/design.md) for the design.
 
 ## Folder Layout

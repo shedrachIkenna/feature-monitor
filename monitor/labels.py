@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
@@ -128,6 +130,17 @@ def _fetch_with_one_retry(feature_key: str) -> object | None:
     return None
 
 
+def fetch_label(feature_id: int | str) -> str | None:
+    """Fetch a feature's label from Neuronpedia, bypassing the cache; None if the fetch failed.
+
+    A feature Neuronpedia knows but has no usable explanation for is labelled 'unlabelled'.
+    """
+    payload = _fetch_with_one_retry(str(feature_id))
+    if payload is None:
+        return None
+    return _explanation_from_payload(payload) or "unlabelled"
+
+
 def get_label(feature_id: int | str) -> str:
     """Return the readable label for a feature or 'unlabelled' on failure."""
     feature_key = str(feature_id)
@@ -135,14 +148,34 @@ def get_label(feature_id: int | str) -> str:
     if feature_key in cache:
         return cache[feature_key]
 
-    payload = _fetch_with_one_retry(feature_key)
-    if payload is None:
+    text = fetch_label(feature_key)
+    if text is None:
         return "unlabelled"
 
-    text = _explanation_from_payload(payload) or "unlabelled"
     cache[feature_key] = text
     _write_cache(cache)
     return text
+
+
+def prefetch_labels(
+    feature_ids: Iterable[int],
+    fetch: Callable[[int], str | None] = fetch_label,
+    workers: int = 8,
+) -> tuple[int, int, int]:
+    """Fill the cache for every uncached feature, fetching in parallel and writing once.
+
+    Returns (already cached, newly fetched, failed). Failed features stay uncached, so the app
+    retries them on first use.
+    """
+    cache = _read_cache()
+    requested = set(feature_ids)
+    missing = sorted(f for f in requested if str(f) not in cache)
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        texts = list(pool.map(fetch, missing))
+    fetched = {str(f): t for f, t in zip(missing, texts, strict=True) if t is not None}
+    cache.update(fetched)
+    _write_cache(cache)
+    return len(requested) - len(missing), len(fetched), len(missing) - len(fetched)
 
 
 def main(prompt: str, k: int = 10) -> None:

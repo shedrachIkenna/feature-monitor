@@ -172,3 +172,34 @@ def _explanation(description: str, *values: object) -> dict[str, object]:
 )
 def test_explanation_prefers_highest_mean_score(explanations, expected: str) -> None:
     assert labels._explanation_from_payload({"explanations": explanations}) == expected
+
+
+def test_fetch_label_returns_none_on_failure_and_skips_cache(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    monkeypatch.setattr(labels, "_fetch_with_one_retry", lambda key: None)
+
+    assert labels.fetch_label(7) is None
+    assert not (tmp_path / "labels.json").exists()
+
+
+def test_prefetch_labels_fetches_only_uncached_and_keeps_failures_out(
+    monkeypatch, tmp_path
+) -> None:
+    cache_path = tmp_path / "labels.json"
+    cache_path.write_text(json.dumps({"1": "cached one", "99": "unrelated"}))
+    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+    calls: list[int] = []
+
+    def fake_fetch(feature_id: int) -> str | None:
+        calls.append(feature_id)
+        return None if feature_id == 3 else f"label {feature_id}"
+
+    result = labels.prefetch_labels([1, 2, 3, 2], fetch=fake_fetch, workers=2)
+
+    assert result == (1, 1, 1)
+    assert sorted(calls) == [2, 3]
+    assert json.loads(cache_path.read_text()) == {
+        "1": "cached one",
+        "2": "label 2",
+        "99": "unrelated",
+    }
