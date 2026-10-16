@@ -110,6 +110,11 @@ def test_playground_sends_unrecorded_chat_requests() -> None:
     assert "record: false" in script
 
 
+def test_playground_explains_a_full_queue() -> None:
+    script = (FRONTEND_DIR / "playground.js").read_text()
+    assert "error.status === 429" in script
+
+
 def test_how_to_read_panel_has_at_most_four_lines() -> None:
     html = (FRONTEND_DIR / "index.html").read_text()
     panel = html.split('class="card howto"')[1].split("</aside>")[0]
