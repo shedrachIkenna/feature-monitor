@@ -30,6 +30,8 @@ Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /f
 
 The model answers one prompt at a time. At most 4 `/chat` requests may be running or waiting at once (set `FEATURE_MONITOR_MAX_CHAT_QUEUE` to change it); the rest get `429 Too Many Requests` with `Retry-After: 1` and are neither run nor stored.
 
+Recorded prompts can be locked with a secret so strangers cannot push traffic into the drift window. Set `FEATURE_MONITOR_RECORD_TOKEN` on the server, and send the same value in an `X-Record-Token` header with every `"record": true` request; a missing or wrong token gets `403 Forbidden`. The traffic generator sends the header when `FEATURE_MONITOR_RECORD_TOKEN` is set in its shell. Without a token the server records anything, unless `FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1` is set, in which case it refuses all recorded prompts. Unrecorded prompts (`"record": false`, the Playground) never need the token.
+
 ### Open the dashboard
 
 The same server serves the dashboard at `/`. From the project folder:
@@ -82,6 +84,11 @@ The first build takes several minutes. Then open <http://localhost:7860/>;
 `/data/feature_monitor.db` on the `feature-monitor-data` volume, so it survives
 `docker compose down` and rebuilds (`docker compose down -v` deletes it). The app runs as a
 non-root user with uid 1000, as Hugging Face Spaces requires.
+
+The image sets `FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1`, so it refuses recorded prompts until
+it is given a token. Locally, `docker-compose.yml` passes `FEATURE_MONITOR_RECORD_TOKEN`
+through from your shell (`FEATURE_MONITOR_RECORD_TOKEN=... docker compose up`); on a Hugging
+Face Space, add it as a secret in the Space's settings.
 
 On Linux the lock file installs the CPU-only build of torch from the PyTorch index
 (`[tool.uv.sources]` in `pyproject.toml`); macOS keeps PyPI's torch. PyPI's Linux torch

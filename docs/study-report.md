@@ -7,7 +7,7 @@ the review fixes, and the supporting experiments.
 > **Out of date beyond Milestone 1.4 (checked 2026-10-16).** Everything after that (traffic
 > pools, baseline, drift test, calibration, the embedding detector, storage, API, drift job,
 > dashboard, first run, multi-seed evaluation, the stronger embedding baselines, the Docker
-> image, CI and the `/chat` queue cap) is not
+> image, CI, the `/chat` queue cap and the record token) is not
 > covered here yet; see
 > [log.md](log.md). Sections 1.8 and 1.9 ("not chosen yet") and Part 6 are superseded by
 > [design.md](design.md). A full refresh is pending.
