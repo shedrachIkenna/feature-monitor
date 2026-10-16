@@ -35,7 +35,9 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
   `monitor/config.yaml`).
 - **Embedding detector:** `all-MiniLM-L6-v2` embeddings, each prompt assigned to the nearest of
   50 k-means clusters fitted on the same 3,000 prompts; the cluster is scored exactly like a
-  feature list (`monitor/embed_drift.py`). A stronger embedding baseline is being tested.
+  feature list (`monitor/embed_drift.py`). Three stronger embedding detectors (200 clusters,
+  mean-embedding distance, MMD) were tested offline (`eval/embed_baselines.py`); the live app
+  still runs the 50-cluster one.
 
 ## Drift scenarios
 Each scenario has 2,000 requests from `normal_test`. Shifted prompts are mixed in **gradually**:
@@ -74,8 +76,8 @@ report it as a test of what only internal monitoring can see, not as a win over 
   (Gemma 2 2B in Milestone 7).
 
 ## Open questions
-- Would a stronger embedding detector (more clusters, or a test on the embeddings themselves)
-  close the gap to the SAE detector?
+- Should the live embedding detector switch to mean distance or MMD? Both alert sooner than
+  50 clusters offline, though still later than the SAE detector (see [log.md](log.md)).
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the
   saved thresholds, 2 of 10 normal 2,000-request runs raise a false alarm for each detector.
 - Which steering direction and strengths, and at which layer?
