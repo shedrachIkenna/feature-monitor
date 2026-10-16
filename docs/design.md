@@ -80,6 +80,15 @@ report it as a test of what only internal monitoring can see, not as a win over 
 - Not yet: sudden switches (all scenarios are ramps), and models other than GPT-2 Small
   (Gemma 2 2B in Milestone 7).
 
+## Known gaps
+Things we know are missing, with when each must be fixed. Remove an item once it is fixed.
+- `POST /chat` (and so the Playground) has no rate limit. Each request runs GPT-2 on CPU one
+  at a time, so a burst would stall the app and its drift checks. **Must fix before the Space
+  is public.**
+- Model versions are not pinned: GPT-2, the SAE and MiniLM are downloaded from the latest
+  Hugging Face upload at build time, so a rebuild could get different weights. Optional; pin
+  revisions for reproducible builds.
+
 ## Open questions
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the
   saved thresholds, 2 of 10 normal 2,000-request runs raise a false alarm for each detector.
