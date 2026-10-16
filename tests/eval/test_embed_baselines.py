@@ -6,12 +6,12 @@ from eval.embed_baselines import (
     calibration_windows,
     embeddings_for,
     gaussian_kernel,
-    mean_distance,
     median_width,
     rolling_mean_distance,
 )
 from monitor.calibrate import window_scores
 from monitor.drift import score_window
+from monitor.embed_mean import mean_distance
 
 
 def unit_rows(n: int, dim: int, seed: int) -> np.ndarray:

@@ -18,9 +18,14 @@ const DETECTORS = {
     name: "SAE features",
     help: "Drift in which internal model features (from the sparse autoencoder) fire on prompts.",
   },
-  embedding: {
+  embedding_mean: {
     name: "Sentence embeddings",
-    help: "The simpler baseline: drift in which topic cluster each prompt's sentence embedding falls in.",
+    help: "The simpler baseline: drift in the average meaning of the prompts (distance between the window's mean sentence embedding and normal traffic's).",
+  },
+  // Saved runs from before 2026-10-16 scored embeddings by topic cluster instead.
+  embedding: {
+    name: "Sentence embeddings (clusters, old)",
+    help: "Drift in which topic cluster each prompt's sentence embedding falls in.",
   },
 };
 

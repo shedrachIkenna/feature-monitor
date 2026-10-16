@@ -1,8 +1,21 @@
+import dataclasses
+import json
+
+import numpy as np
 import pytest
 
 from backend import storage
+from monitor.calibrate import threshold_path
+from monitor.embed_mean import mean_baseline_path
 from monitor.extract import FeatureHit
-from monitor.job import Detector, DriftJob, example_prompts, sae_sets
+from monitor.job import (
+    Detector,
+    DriftJob,
+    WindowEmbedder,
+    embedding_detector,
+    example_prompts,
+    sae_sets,
+)
 
 WINDOW = 10
 NORMAL = [1, 2, 3, 4, 5, 6]
@@ -89,3 +102,51 @@ def test_example_prompts_describe_a_cluster() -> None:
     sets = [[0], [1], [0], [0]]
 
     assert example_prompts(0, requests, sets) == "a | c"
+
+
+def test_a_custom_score_decides_the_alert_and_is_stored(db) -> None:
+    add(NORMAL, WINDOW)  # Jensen-Shannon would score this 0 and stay quiet
+    custom = dataclasses.replace(detector(), name="custom", score=lambda requests, sets: 0.5)
+
+    assert len(DriftJob([custom], WINDOW).run()) == 1
+
+    [check] = storage.list_drift_checks()
+    assert (check["kind"], check["score"]) == ("custom", 0.5)
+    assert storage.list_alerts()[0]["score"] == 0.5
+
+
+def fake_embed(calls: list):
+    def embed(prompts: list[str]) -> np.ndarray:
+        calls.append(list(prompts))
+        return np.array([[float(len(p))] + [0.0] * 383 for p in prompts], dtype=np.float32)
+
+    return embed
+
+
+def test_window_embedder_embeds_each_request_once_and_forgets_old_ones() -> None:
+    calls: list = []
+    embed = WindowEmbedder(fake_embed(calls))
+    first = [{"id": i, "prompt": "x" * i} for i in (1, 2, 3)]
+    second = first[1:] + [{"id": 4, "prompt": "xxxx"}]
+
+    assert embed(first)[:, 0].tolist() == [1.0, 2.0, 3.0]
+    assert embed(second)[:, 0].tolist() == [2.0, 3.0, 4.0]
+    assert embed(second)[:, 0].tolist() == [2.0, 3.0, 4.0]
+    assert calls == [["x", "xx", "xxx"], ["xxxx"]]
+    assert set(embed._cache) == {2, 3, 4}
+
+
+def test_embedding_detector_scores_by_mean_distance_with_the_saved_threshold() -> None:
+    calls: list = []
+    saved = json.loads(threshold_path(mean_baseline_path()).read_text())
+    found = embedding_detector(saved["window_size"], WindowEmbedder(fake_embed(calls)))
+    requests = [{"id": i, "prompt": "p" * (i % 3 + 1)} for i in range(5)]
+
+    sets = found.to_sets(requests)
+    score = found.score_window(requests, sets)
+
+    assert found.name == "embedding_mean"
+    assert found.threshold == saved["threshold"]
+    assert len(found.baseline_counts) <= 50 and all(len(s) == 1 for s in sets)
+    assert score > 0
+    assert len(calls) == 1  # clusters and score share one embedding pass

@@ -39,6 +39,7 @@ from eval.multiseed import (
 from monitor.baseline import baseline_path, load_baseline
 from monitor.calibrate import CALIBRATION_POOL, CHECK_POOL
 from monitor.config import load_config
+from monitor.embed_mean import mean_distance
 from traffic.generate import load_pool
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -61,11 +62,6 @@ def calibration_windows(
     rng = np.random.default_rng([seed, window_size])
     indices = np.arange(pool_size)
     return [rng.choice(indices, size=window_size, replace=False) for _ in range(n_windows)]
-
-
-def mean_distance(window: np.ndarray, baseline_mean: np.ndarray) -> float:
-    """Squared distance between the window's mean embedding and the baseline's."""
-    return float(((window.mean(axis=0) - baseline_mean) ** 2).sum())
 
 
 def rolling_mean_distance(

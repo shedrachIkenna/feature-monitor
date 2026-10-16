@@ -16,7 +16,8 @@ and `details` as JSON text. Written by the drift job (`monitor/job.py`) with `sa
 read by `GET /alerts` through `list_alerts`.
 
 **drift_checks**: one row per detector per drift check, alert or not: `created_at`, `kind`
-(`sae` or `embedding`), `score`, the `threshold` it was judged against, `window_size`, and the
+(`sae` or `embedding_mean`; databases from before 2026-10-16 hold `embedding`, the old
+cluster score), `score`, the `threshold` it was judged against, `window_size`, and the
 window's `first_request_id`/`last_request_id`. Written by the drift job with `save_drift_check`, so
 `GET /dashboard/timeline` is a cheap read of stored scores instead of rescoring windows. Indexed on
 `created_at`.

@@ -19,7 +19,7 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
    [schema.md](schema.md)).
 4. Every 60 seconds, a drift job scores the latest 500 requests against a fixed baseline
    and stores the score; a score above the threshold raises an alert (`monitor/job.py`).
-5. The same job runs the same test on prompt sentence embeddings, as the comparison baseline.
+5. The same job scores the same window from prompt sentence embeddings, as the comparison baseline.
 6. A dashboard served at `/` shows scores, alerts and drifting features; its Playground page
    runs single prompts without storing them (`POST /chat` with `record: false`).
 
@@ -33,11 +33,13 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 - **Threshold:** the 99th percentile of scores of 1,000 random 500-prompt windows from the
   ~11,000 `normal_train` prompts not in the baseline (`monitor/calibrate.py`, settings in
   `monitor/config.yaml`).
-- **Embedding detector:** `all-MiniLM-L6-v2` embeddings, each prompt assigned to the nearest of
-  50 k-means clusters fitted on the same 3,000 prompts; the cluster is scored exactly like a
-  feature list (`monitor/embed_drift.py`). Three stronger embedding detectors (200 clusters,
-  mean-embedding distance, MMD) were tested offline (`eval/embed_baselines.py`); the live app
-  still runs the 50-cluster one.
+- **Embedding detector** (`embedding_mean`): `all-MiniLM-L6-v2` embeddings; the window score is
+  the squared distance between the window's mean embedding and the mean of the same 3,000
+  baseline prompts, with its own 99th-percentile threshold (`monitor/embed_mean.py`). Each prompt
+  is also put in the nearest of 50 k-means clusters (`monitor/embed_drift.py`), used only to list
+  which topics changed in an alert. Until 2026-10-16 the clusters themselves were scored (kind
+  `embedding`); offline, mean distance, MMD and 200 clusters were compared and mean distance was
+  the simplest of the two best (`eval/embed_baselines.py`).
 
 ## Drift scenarios
 Each scenario has 2,000 requests from `normal_test`. Shifted prompts are mixed in **gradually**:
@@ -76,8 +78,6 @@ report it as a test of what only internal monitoring can see, not as a win over 
   (Gemma 2 2B in Milestone 7).
 
 ## Open questions
-- Should the live embedding detector switch to mean distance or MMD? Both alert sooner than
-  50 clusters offline, though still later than the SAE detector (see [log.md](log.md)).
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the
   saved thresholds, 2 of 10 normal 2,000-request runs raise a false alarm for each detector.
 - Which steering direction and strengths, and at which layer?

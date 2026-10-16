@@ -115,3 +115,15 @@ def test_how_to_read_panel_has_at_most_four_lines() -> None:
     panel = html.split('class="card howto"')[1].split("</aside>")[0]
     assert "How to read this" in panel
     assert 1 <= panel.count("<li>") <= 4
+
+
+@pytest.mark.parametrize("kind", ["sae", "embedding_mean", "embedding"])
+def test_every_detector_kind_has_a_name_in_the_frontend(kind) -> None:
+    # "embedding" is the old cluster detector, still found in saved databases.
+    script = (FRONTEND_DIR / "common.js").read_text()
+    assert f"\n  {kind}: {{" in script
+
+
+@pytest.mark.parametrize("kind", ["sae", "embedding_mean"])
+def test_overview_explains_each_live_detector(kind) -> None:
+    assert f'id="help-{kind}"' in (FRONTEND_DIR / "index.html").read_text()

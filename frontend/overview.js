@@ -1,12 +1,13 @@
 // Overview page: drift scores with thresholds, request volume, and alerts in the chosen range.
 
-const SERIES_VAR = { sae: "--series-1", embedding: "--series-2" };
+const SERIES_VAR = { sae: "--series-1", embedding_mean: "--series-2", embedding: "--series-2" };
 const ALERT_TOP = 3;
 let scoreChart = null;
 let volumeChart = null;
 
 for (const [kind, detector] of Object.entries(DETECTORS)) {
-  document.getElementById(`help-${kind}`).textContent = detector.help;
+  const help = document.getElementById(`help-${kind}`);
+  if (help) help.textContent = detector.help;
 }
 applyTerms();
 
