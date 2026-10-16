@@ -56,7 +56,9 @@ async function api(path, init) {
     } catch (_) {
       // Not JSON; keep the status text.
     }
-    throw new Error(`${path}: ${response.status} ${detail}`);
+    const error = new Error(`${path}: ${response.status} ${detail}`);
+    error.status = response.status;
+    throw error;
   }
   return response.json();
 }

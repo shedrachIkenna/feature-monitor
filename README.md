@@ -28,6 +28,8 @@ Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /f
 
 `POST /chat` stores every request as monitored traffic. Send `"record": false` to get the reply and features without storing anything; the Playground page does this, so trying prompts by hand never moves the drift scores, raises alerts, or shows up as example prompts.
 
+The model answers one prompt at a time. At most 4 `/chat` requests may be running or waiting at once (set `FEATURE_MONITOR_MAX_CHAT_QUEUE` to change it); the rest get `429 Too Many Requests` with `Retry-After: 1` and are neither run nor stored.
+
 ### Open the dashboard
 
 The same server serves the dashboard at `/`. From the project folder:

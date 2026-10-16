@@ -1,10 +1,18 @@
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 from backend import storage
-from backend.app import EXTRACT_ENV, EngineResult, create_app, extraction_enabled
+from backend.app import (
+    EXTRACT_ENV,
+    MAX_CHAT_QUEUE_ENV,
+    EngineResult,
+    create_app,
+    extraction_enabled,
+    max_chat_queue,
+)
 from monitor.config import load_config
 from monitor.extract import FeatureHit
 from monitor.job import DriftJob
@@ -153,3 +161,76 @@ def test_drift_job_is_scheduled_at_the_configured_interval(tmp_path, monkeypatch
     # Late checks must run, not be skipped (the default skips any check over 1 s late).
     assert scheduled.misfire_grace_time is None
     assert scheduled.coalesce is True
+
+
+class BlockingEngine(FakeEngine):
+    """A fake engine whose runs wait until the test releases them."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.release = threading.Event()
+        self.started = threading.Semaphore(0)
+
+    def run(self, prompt: str) -> EngineResult:
+        self.started.release()
+        assert self.release.wait(timeout=10)
+        return super().run(prompt)
+
+
+class FailingEngine(FakeEngine):
+    def run(self, prompt: str) -> EngineResult:
+        raise RuntimeError("model crashed")
+
+
+def test_chat_rejects_requests_over_the_queue_cap_and_stores_nothing(tmp_path, monkeypatch):
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    monkeypatch.setenv(MAX_CHAT_QUEUE_ENV, "2")
+    with TestClient(create_app(BlockingEngine)) as client:
+        engine: BlockingEngine = client.app.state.engine
+        responses = []
+        threads = [
+            threading.Thread(
+                target=lambda i=i: responses.append(client.post("/chat", json={"prompt": f"p{i}"}))
+            )
+            for i in range(2)
+        ]
+        for thread in threads:
+            thread.start()
+        for _ in threads:
+            assert engine.started.acquire(timeout=10)
+
+        rejected = client.post("/chat", json={"prompt": "one too many"})
+        engine.release.set()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        assert rejected.status_code == 429
+        assert rejected.headers["retry-after"] == "1"
+        assert [r.status_code for r in responses] == [200, 200]
+        assert sorted(r["prompt"] for r in storage.recent_requests()) == ["p0", "p1"]
+        # Finished requests free their places in the queue.
+        assert client.post("/chat", json={"prompt": "later"}).status_code == 200
+
+
+def test_failed_chat_frees_its_place_in_the_queue(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    monkeypatch.setenv(MAX_CHAT_QUEUE_ENV, "1")
+    app = create_app(FailingEngine)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.post("/chat", json={"prompt": "a"}).status_code == 500
+        assert client.post("/chat", json={"prompt": "b"}).status_code == 500
+
+
+@pytest.mark.parametrize(("value", "expected"), [(None, 4), ("1", 1), ("10", 10)])
+def test_chat_queue_cap_reads_its_environment_variable(monkeypatch, value, expected) -> None:
+    if value is None:
+        monkeypatch.delenv(MAX_CHAT_QUEUE_ENV, raising=False)
+    else:
+        monkeypatch.setenv(MAX_CHAT_QUEUE_ENV, value)
+    assert max_chat_queue() == expected
+
+
+def test_chat_queue_cap_below_one_is_rejected(monkeypatch) -> None:
+    monkeypatch.setenv(MAX_CHAT_QUEUE_ENV, "0")
+    with pytest.raises(ValueError):
+        max_chat_queue()

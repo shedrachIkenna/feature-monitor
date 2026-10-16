@@ -37,6 +37,10 @@ MAX_NEW_TOKENS = 40
 SEED = 0
 # Set to "0" to skip feature extraction, e.g. to measure its latency overhead.
 EXTRACT_ENV = "FEATURE_MONITOR_EXTRACT"
+# The model answers one prompt at a time; at most this many /chat requests may be running or
+# waiting at once, and the rest get 429 straight away instead of piling up.
+MAX_CHAT_QUEUE_ENV = "FEATURE_MONITOR_MAX_CHAT_QUEUE"
+DEFAULT_MAX_CHAT_QUEUE = 4
 # The playground labels one prompt's top 20 features; uncached labels each cost a Neuronpedia call.
 MAX_LABEL_IDS = 20
 LABEL_IDS_PATTERN = r"^\d+(,\d+)*$"
@@ -46,6 +50,14 @@ FRONTEND_DIR = FilePath(__file__).resolve().parent.parent / "frontend"
 def extraction_enabled() -> bool:
     """Return False only when the extraction flag is set to \"0\"."""
     return os.environ.get(EXTRACT_ENV, "1") != "0"
+
+
+def max_chat_queue() -> int:
+    """Return the /chat queue cap from its environment variable; it must be at least 1."""
+    value = int(os.environ.get(MAX_CHAT_QUEUE_ENV, DEFAULT_MAX_CHAT_QUEUE))
+    if value < 1:
+        raise ValueError(f"{MAX_CHAT_QUEUE_ENV} must be at least 1, got {value}")
+    return value
 
 
 @dataclass(frozen=True)
@@ -155,6 +167,9 @@ def create_app(
             app.state.scheduler.shutdown(wait=False)
 
     app = FastAPI(title="Feature Monitor", lifespan=lifespan)
+    chat_limit = max_chat_queue()
+    # Only touched on the event loop, between awaits, so it needs no lock.
+    chat_in_flight = 0
 
     @app.get("/health")
     def health(request: Request) -> dict:
@@ -168,20 +183,31 @@ def create_app(
 
     @app.post("/chat")
     async def chat(body: ChatRequest, request: Request) -> ChatResponse:
-        engine: Engine = request.app.state.engine
-        result = await run_in_threadpool(engine.run, body.prompt)
-        request_id = None
-        if body.record:
-            request_id = await run_in_threadpool(
-                storage.save_request,
-                body.prompt,
-                result.reply,
-                engine.model_name,
-                result.hits,
-                result.gen_ms,
-                result.extract_ms,
-                body.scenario,
+        nonlocal chat_in_flight
+        if chat_in_flight >= chat_limit:
+            raise HTTPException(
+                429,
+                "The model is busy with other prompts; try again in a moment.",
+                headers={"Retry-After": "1"},
             )
+        engine: Engine = request.app.state.engine
+        chat_in_flight += 1
+        try:
+            result = await run_in_threadpool(engine.run, body.prompt)
+            request_id = None
+            if body.record:
+                request_id = await run_in_threadpool(
+                    storage.save_request,
+                    body.prompt,
+                    result.reply,
+                    engine.model_name,
+                    result.hits,
+                    result.gen_ms,
+                    result.extract_ms,
+                    body.scenario,
+                )
+        finally:
+            chat_in_flight -= 1
         return ChatResponse(
             reply=result.reply,
             request_id=request_id,
