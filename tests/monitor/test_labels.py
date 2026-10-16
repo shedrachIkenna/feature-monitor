@@ -1,4 +1,6 @@
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
 from typing import Self
 from urllib import error as urllib_error
@@ -203,3 +205,23 @@ def test_prefetch_labels_fetches_only_uncached_and_keeps_failures_out(
         "2": "label 2",
         "99": "unrelated",
     }
+
+
+def test_concurrent_get_label_keeps_every_label(monkeypatch, tmp_path) -> None:
+    cache_path = tmp_path / "labels.json"
+    cache_path.write_text(json.dumps({str(i): f"old {i}" for i in range(500)}))
+    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+
+    def slow_fetch(feature_id: int | str) -> str:
+        threading.Event().wait(0.002)  # a real pause; time.sleep is replaced by a fixture
+        return f"new {feature_id}"
+
+    monkeypatch.setattr(labels, "fetch_label", slow_fetch)
+    new_ids = range(1000, 1200)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(labels.get_label, new_ids))
+
+    cached = json.loads(cache_path.read_text())
+    assert all(cached[str(i)] == f"old {i}" for i in range(500))
+    assert all(cached[str(i)] == f"new {i}" for i in new_ids)
+    assert list(tmp_path.iterdir()) == [cache_path]

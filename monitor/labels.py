@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import threading
 import time
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -20,6 +23,7 @@ RETRY_DELAY_SECONDS = 1.0
 MAX_RETRY_DELAY_SECONDS = 10.0
 # Our own judgement, not a Neuronpedia standard: scores near 0.5 are close to coin-flip.
 MIN_EXPLANATION_SCORE = 0.7
+_CACHE_LOCK = threading.Lock()
 
 
 def _feature_url(feature_id: int | str) -> str:
@@ -48,12 +52,33 @@ def _read_cache() -> dict[str, str]:
 
 
 def _write_cache(cache: dict[str, str]) -> None:
-    """Persist the label cache to a local JSON file."""
+    """Persist the label cache atomically: readers see the old file or the new one, never half.
+
+    The JSON goes to a temporary file in the same folder, which then replaces the cache in one
+    step (os.replace).
+    """
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CACHE_PATH.write_text(
-        json.dumps(cache, ensure_ascii=False, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=CACHE_PATH.parent, suffix=".tmp", delete=False
+    ) as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2, sort_keys=True)
+    try:
+        os.replace(f.name, CACHE_PATH)
+    except OSError:
+        os.unlink(f.name)
+        raise
+
+
+def _add_to_cache(new: dict[str, str]) -> None:
+    """Merge new labels into the cache on disk.
+
+    The lock makes read, merge and write one step, so concurrent callers (dashboard requests,
+    the drift job) cannot overwrite each other's labels.
+    """
+    with _CACHE_LOCK:
+        cache = _read_cache()
+        cache.update(new)
+        _write_cache(cache)
 
 
 def _mean_score(explanation: dict) -> float | None:
@@ -152,8 +177,8 @@ def get_label(feature_id: int | str) -> str:
     if text is None:
         return "unlabelled"
 
-    cache[feature_key] = text
-    _write_cache(cache)
+    # The fetch runs outside the lock, so one slow Neuronpedia call never blocks other labels.
+    _add_to_cache({feature_key: text})
     return text
 
 
@@ -173,8 +198,7 @@ def prefetch_labels(
     with ThreadPoolExecutor(max_workers=workers) as pool:
         texts = list(pool.map(fetch, missing))
     fetched = {str(f): t for f, t in zip(missing, texts, strict=True) if t is not None}
-    cache.update(fetched)
-    _write_cache(cache)
+    _add_to_cache(fetched)
     return len(requested) - len(missing), len(fetched), len(missing) - len(fetched)
 
 
