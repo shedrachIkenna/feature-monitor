@@ -39,3 +39,5 @@ traffic/runs/
 monitor/baselines/*_features.json
 # Prompt embeddings for the embedding detector (recreate with: uv run python -m monitor.embed_drift)
 monitor/baselines/*_embeddings.npy
+# Per-prompt features and clusters for the multi-seed replay (recreate with: uv run python -m eval.multiseed)
+data/multiseed/
