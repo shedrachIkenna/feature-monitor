@@ -22,7 +22,25 @@ uv run uvicorn backend.app:app
 curl -X POST localhost:8000/chat -H 'content-type: application/json' -d '{"prompt": "Hello"}'
 ```
 
-Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /features/stats?minutes=60`.
+Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /features/stats?minutes=60`, `GET /alerts`, `GET /dashboard/timeline`, `GET /dashboard/drifting`, `GET /dashboard/feature/{id}`.
+
+### Open the dashboard
+
+The same server serves the dashboard at `/`. From the project folder:
+
+```sh
+uv run uvicorn backend.app:app --port 8000
+```
+
+Wait for `Uvicorn running on http://127.0.0.1:8000` (loading GPT-2 and the SAE takes about half a minute), then open <http://localhost:8000/>. Stop it with Ctrl+C.
+
+To look at a saved scenario run instead of live traffic, point the app at that run's database:
+
+```sh
+FEATURE_MONITOR_DB=data/dashboard_check/medical_ramp_5_2.db uv run uvicorn backend.app:app --port 8000
+```
+
+The charts show time up to now, so for a run from earlier in the day set **Time range** to **Last 24 hours**. "address already in use" means another copy of the server is already running on port 8000; stop that one first.
 
 GPT-2 Small is not a chat model, so `/chat` replies are poor continuations of the prompt. That is expected: reply quality is not what we measure. The replies use a fixed seed (40 new tokens at most), so the same prompt always gets the same reply.
 
