@@ -25,6 +25,9 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 7. It ships as one CPU-only Docker image on port 7860 (`Dockerfile`), with the models and the
    baseline features' labels downloaded at build time (`monitor/prefetch.py`) and the
    database under `/data`.
+8. GitHub Actions CI (`.github/workflows/ci.yml`) runs on every push and pull request: ruff
+   check, ruff format check and the tests without `requires_model` (offline), plus a Docker
+   build that is not pushed. Nothing is deployed automatically yet.
 
 ## Drift test (decided)
 - **Baseline:** 3,000 prompts sampled (seed 0) from `normal_train`; per feature, how many had
