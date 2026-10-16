@@ -1,4 +1,6 @@
-// Overview page: drift scores with thresholds, request volume, and alerts in the chosen range.
+// Overview page: drift scores relative to their thresholds, request volume, and alerts in range.
+// Each detector's score is divided by its own threshold, so 1 is the alarm level for every line:
+// the detectors' raw scores differ about twentyfold and would not share one axis readably.
 
 const SERIES_VAR = { sae: "--series-1", embedding_mean: "--series-2", embedding: "--series-2" };
 const ALERT_TOP = 3;
@@ -22,7 +24,11 @@ function scoreDatasets(timeline, bucketMs, xMin, xMax) {
     const color = cssVar(SERIES_VAR[kind] ?? "--series-2");
     const points = timeline.buckets
       .filter((b) => b[kind].score !== null)
-      .map((b) => ({ x: parseTime(b.start) + bucketMs / 2, y: b[kind].score, ...b[kind] }));
+      .map((b) => ({
+        x: parseTime(b.start) + bucketMs / 2,
+        y: b[kind].score / b[kind].threshold,
+        ...b[kind],
+      }));
     if (!points.length) continue;
     // Gaps of a few steps (a late check) are bridged; longer ones (no traffic) break the line.
     datasets.push({
@@ -37,19 +43,20 @@ function scoreDatasets(timeline, bucketMs, xMin, xMax) {
       pointBackgroundColor: (ctx) => (ctx.raw?.alert ? accent : color),
       pointBorderColor: (ctx) => (ctx.raw?.alert ? accent : color),
     });
-    // The threshold as a dashed step line, held flat to both edges of the chart.
-    const steps = points.map((p) => ({ x: p.x, y: p.threshold }));
-    steps.unshift({ x: xMin, y: steps[0].y });
-    steps.push({ x: xMax, y: steps[steps.length - 1].y });
+  }
+  if (datasets.length) {
+    // One alarm level for every detector: score equal to its own threshold.
     datasets.push({
-      label: `${detectorName(kind)} threshold`,
+      label: "Alarm level",
+      endLabel: "alarm level",
       isThreshold: true,
-      data: steps,
-      borderColor: color,
+      data: [
+        { x: xMin, y: 1 },
+        { x: xMax, y: 1 },
+      ],
+      borderColor: cssVar("--ink-2"),
       borderWidth: 1.5,
       borderDash: [6, 4],
-      stepped: "after",
-      spanGaps: true,
       pointRadius: 0,
       pointHoverRadius: 0,
     });
@@ -66,13 +73,15 @@ function drawScores(timeline, bucketMs, xMin, xMax) {
       ? ""
       : "No drift checks in this time range yet. Checks start once 500 requests have arrived."
   );
-  const options = baseOptions(xMin, xMax, "Drift score");
-  options.scales.y.ticks.callback = (value) => fmtNum(value, 3);
+  const options = baseOptions(xMin, xMax, "Score ÷ threshold");
+  options.scales.y.ticks.callback = (value) => fmtNum(value, 1);
+  // Keep the alarm level in view even when every score is far below it.
+  options.scales.y.suggestedMax = 1.2;
   options.plugins.tooltip.filter = (item) => !item.dataset.isThreshold;
   options.plugins.tooltip.callbacks.label = (item) => {
     const p = item.raw;
     const verdict = p.alert ? " (above threshold: alert)" : "";
-    return `${item.dataset.label}: ${fmtNum(p.score, 4)}, threshold ${fmtNum(p.threshold, 4)}${verdict}`;
+    return `${item.dataset.label}: ${fmtNum(p.y, 2)}× threshold (score ${fmtNum(p.score, 4)}, threshold ${fmtNum(p.threshold, 4)})${verdict}`;
   };
   options.layout = { padding: { right: 8, top: 12 } };
   scoreChart = drawChart(scoreChart, document.getElementById("scores"), {

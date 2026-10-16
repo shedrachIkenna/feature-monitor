@@ -39,22 +39,22 @@ Wait for `Uvicorn running on http://127.0.0.1:8000` (loading GPT-2 and the SAE t
 To look at a saved scenario run instead of live traffic, point the app at that run's database:
 
 ```sh
-FEATURE_MONITOR_DB=data/dashboard_check/medical_ramp_5_2.db uv run uvicorn backend.app:app --port 8000
+FEATURE_MONITOR_DB=data/dashboard_check/medical_ramp_mean.db uv run uvicorn backend.app:app --port 8000
 ```
 
 The charts show time up to now, so for a run from earlier in the day set **Time range** to **Last 24 hours**. "address already in use" means another copy of the server is already running on port 8000; stop that one first.
 
 ### What it looks like
 
-These screenshots come from one saved `medical_ramp` run (2,000 requests, about 14 minutes, medical questions ramped into normal traffic), not from live traffic. On the 24-hour view the run is a narrow spike.
+These screenshots come from one `medical_ramp` run (seed 42; 2,000 requests in about 14 minutes, medical questions ramped into normal traffic), not from live traffic, viewed on the 1-hour range.
 
-The overview: both drift scores rise past their thresholds (dashed lines), and every red point is an alert.
+The overview: each detector's drift score divided by its own threshold, so the dashed line at 1 is the alarm level for both. In this run the SAE detector first alerted at request 780 and the embedding detector at request 1061. How far a line rises above 1 is not comparable between detectors.
 
 ![Overview with drift alerts](docs/images/overview-alert.png)
 
-The Features page: SAE features that became more and less common in the latest 500 requests, and the rate over time of #18171 (inflammation terms). Most of the top rising features are about question wording ("What is…"), not medicine, because the medical prompts are templated. Its example-prompt list is empty because it never ranks in a prompt's 5 strongest features.
+The Features page: SAE features that became more and less common in the latest 500 requests, and the rate over time of the top one, #13992 ("What" questions). Most of the top rising features are about question wording, not medicine, because the medical prompts are templated; medical features such as #18171 (inflammation terms) rank lower.
 
-![Features page with feature 18171 selected](docs/images/features-drift.png)
+![Features page with feature 13992 selected](docs/images/features-drift.png)
 
 The Playground: the top 20 features for one prompt, typed by hand and not stored.
 

@@ -20,21 +20,21 @@
       <aside class="card howto" aria-labelledby="howto-title">
         <h2 id="howto-title">How to read this</h2>
         <ol>
-          <li>Each solid line is a drift score: how different the latest 500 requests look from normal traffic.</li>
-          <li>The dashed line is that detector's alarm level; a red point is a check that crossed it.</li>
-          <li>Compare each line only with its own dashed line; the two detectors use different scales.</li>
+          <li>Each solid line is a detector's drift score (how unlike normal traffic the latest 500 requests look), divided by its alarm level.</li>
+          <li>Above the dashed line at 1 means an alert; red points mark those checks.</li>
+          <li>Both lines share this scale, so you can see which detector crossed first.</li>
           <li>An alert means "traffic changed", not "something is wrong": open Features to see what changed.</li>
         </ol>
       </aside>
 
       <section class="card">
-        <h2>Drift score over time, per detector</h2>
+        <h2>Drift score over time, per detector, relative to its alarm level</h2>
         <p class="sub">
-          Higher means the latest 500 requests look less like normal traffic. Solid line:
-          <span data-term="drift">drift score</span>. Dashed line: that detector's
-          <span data-term="threshold">threshold</span>. Red points: checks that raised an alert.
-          The two detectors measure different things, so compare each line with its own dashed
-          line, not with each other.
+          Higher means the latest 500 requests look less like normal traffic. Each line is that
+          detector's <span data-term="drift">drift score</span> divided by its own
+          <span data-term="threshold">threshold</span>, so the dashed line at 1 is the alarm level
+          for both. Red points: checks that raised an alert. When a line crosses 1 is comparable
+          between detectors; how far above 1 it goes is not. Hover a point for the raw score.
         </p>
         <p class="sub">
           <strong>SAE features</strong> (darker line): <span id="help-sae"></span><br />
