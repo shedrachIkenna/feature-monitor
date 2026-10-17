@@ -11,6 +11,7 @@ from backend.app import (
     RECORD_TOKEN_ENV,
     RECORD_TOKEN_HEADER,
     REQUIRE_RECORD_TOKEN_ENV,
+    SPACE_ID_ENV,
     EngineResult,
     create_app,
     extraction_enabled,
@@ -42,6 +43,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
     monkeypatch.delenv(RECORD_TOKEN_ENV, raising=False)
     monkeypatch.delenv(REQUIRE_RECORD_TOKEN_ENV, raising=False)
+    monkeypatch.delenv(SPACE_ID_ENV, raising=False)
     FakeEngine.loads = 0
     with TestClient(create_app(FakeEngine)) as test_client:
         yield test_client
@@ -53,7 +55,15 @@ def test_health_reports_model_and_device(client) -> None:
         "model": "fake-gpt2",
         "device": "cpu",
         "extract": True,
+        "storage_resets": False,
     }
+
+
+def test_health_says_storage_resets_on_a_space(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    monkeypatch.setenv(SPACE_ID_ENV, "someone/feature-monitor")
+    with TestClient(create_app(FakeEngine)) as client:
+        assert client.get("/health").json()["storage_resets"] is True
 
 
 def test_chat_returns_reply_and_stores_request(client) -> None:

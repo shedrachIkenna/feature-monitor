@@ -1,0 +1,51 @@
+# Continuous deployment: after CI passes on a push to main, upload that commit to the
+# Hugging Face Space, which then rebuilds the Docker image and restarts.
+# Needs the repo secret HF_TOKEN (fine-grained, write access to the Space only) and the repo
+# variable HF_SPACE_ID (owner/space-name). The token is only passed as an input, never echoed.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Manual redeploy, e.g. to roll back: give a commit SHA, tag or branch from this repo.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, tag or branch to deploy
+        required: true
+        default: main
+
+# One deploy at a time; a newer one waits for the running one instead of cancelling it.
+concurrency:
+  group: deploy-space
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment:
+      name: huggingface-space
+      url: https://huggingface.co/spaces/${{ vars.HF_SPACE_ID }}
+    steps:
+      # Deploy exactly the commit CI tested, not whatever main points to now.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
+          persist-credentials: false
+      - run: echo "Deploying $(git rev-parse HEAD) to ${{ vars.HF_SPACE_ID }}"
+      - uses: huggingface/hub-sync@fdffea8e04104d0bd4e3181c5feb3025f0433ff5 # v0.3.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: ${{ vars.HF_SPACE_ID }}
+          hf_token: ${{ secrets.HF_TOKEN }}
+          space_sdk: docker
+          hf_version: "2.2.0"

@@ -31,7 +31,11 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
    database under `/data`.
 8. GitHub Actions CI (`.github/workflows/ci.yml`) runs on every push and pull request: ruff
    check, ruff format check and the tests without `requires_model` (offline), plus a Docker
-   build that is not pushed. Nothing is deployed automatically yet.
+   build that is not pushed. When CI passes on a push to `main`, `.github/workflows/deploy.yml`
+   uploads that commit to the Hugging Face Space with `huggingface/hub-sync`, and the Space
+   rebuilds the image (`docs/deployment.md`). The Space's disk is wiped on every restart, so
+   `/health` reports `storage_resets` (true when Hugging Face's `SPACE_ID` is set) and the
+   dashboard shows "Demo data resets on restart".
 
 ## Drift test (decided)
 - **Baseline:** 3,000 prompts sampled (seed 0) from `normal_train`; per feature, how many had
@@ -92,6 +96,12 @@ Things we know are missing, with when each must be fixed. Remove an item once it
 - Model versions are not pinned: GPT-2, the SAE and MiniLM are downloaded from the latest
   Hugging Face upload at build time, so a rebuild could get different weights. Optional; pin
   revisions for reproducible builds.
+- The Space keeps no data: its database is wiped on every restart, redeploy and wake from
+  sleep (stated on the dashboard). Optional; a Storage Bucket mounted at `/data` would keep
+  it, and the `storage_resets` notice would then have to change.
+- A Space rebuild downloads the models and the 2,488 baseline labels while building the
+  image (unless Hugging Face's builder reuses cached layers, which we have not checked), so a
+  deploy can fail if Hugging Face or Neuronpedia is down at that moment. Optional.
 
 ## Open questions
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the

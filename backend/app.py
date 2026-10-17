@@ -48,6 +48,8 @@ RECORD_TOKEN_ENV = "FEATURE_MONITOR_RECORD_TOKEN"
 RECORD_TOKEN_HEADER = "X-Record-Token"
 # Set to "1" (the Docker image does) to refuse recorded prompts when no token is set.
 REQUIRE_RECORD_TOKEN_ENV = "FEATURE_MONITOR_REQUIRE_RECORD_TOKEN"
+# Hugging Face sets this inside every Space, whose disk (and so the database) is wiped on restart.
+SPACE_ID_ENV = "SPACE_ID"
 # The playground labels one prompt's top 20 features; uncached labels each cost a Neuronpedia call.
 MAX_LABEL_IDS = 20
 LABEL_IDS_PATTERN = r"^\d+(,\d+)*$"
@@ -190,6 +192,7 @@ def create_app(
     chat_limit = max_chat_queue()
     record_token = os.environ.get(RECORD_TOKEN_ENV)
     require_record_token = os.environ.get(REQUIRE_RECORD_TOKEN_ENV) == "1"
+    storage_resets = SPACE_ID_ENV in os.environ
     # Only touched on the event loop, between awaits, so it needs no lock.
     chat_in_flight = 0
 
@@ -201,6 +204,7 @@ def create_app(
             "model": engine.model_name,
             "device": engine.device,
             "extract": engine.extract,
+            "storage_resets": storage_resets,
         }
 
     @app.post("/chat")

@@ -146,6 +146,15 @@ main {
 .error {
   color: var(--accent);
 }
+.notice {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 14px;
+  text-align: center;
+}
 .updated {
   color: var(--muted);
   font-size: 13px;
