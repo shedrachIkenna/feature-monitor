@@ -1,4 +1,4 @@
-# Only backend/, monitor/, frontend/ and the uv files are needed to build the image.
+# Only backend/, monitor/, frontend/, traffic/ code and scenarios, and the uv files are needed.
 .git
 .venv
 .claude
@@ -9,7 +9,8 @@ data/
 docs/
 eval/
 tests/
-traffic/
+traffic/data/
+traffic/runs/
 *.db
 *.db-shm
 *.db-wal

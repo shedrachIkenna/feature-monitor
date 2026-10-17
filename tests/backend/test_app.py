@@ -1,21 +1,29 @@
+import json
+import logging
 import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import storage
+from backend import demo, storage
 from backend.app import (
+    ADMIN_TOKEN_ENV,
+    ADMIN_TOKEN_HEADER,
+    CHAT_RATE_LIMIT_ENV,
     EXTRACT_ENV,
     MAX_CHAT_QUEUE_ENV,
     RECORD_TOKEN_ENV,
     RECORD_TOKEN_HEADER,
     REQUIRE_RECORD_TOKEN_ENV,
+    RETENTION_CHECK_HOURS,
     SPACE_ID_ENV,
     EngineResult,
     create_app,
+    delete_old_rows,
     extraction_enabled,
     max_chat_queue,
+    request_log,
 )
 from monitor.config import load_config
 from monitor.extract import FeatureHit
@@ -43,7 +51,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
     monkeypatch.delenv(RECORD_TOKEN_ENV, raising=False)
     monkeypatch.delenv(REQUIRE_RECORD_TOKEN_ENV, raising=False)
-    monkeypatch.delenv(SPACE_ID_ENV, raising=False)
+    for name in (SPACE_ID_ENV, ADMIN_TOKEN_ENV, CHAT_RATE_LIMIT_ENV, demo.DEMO_TRAFFIC_ENV):
+        monkeypatch.delenv(name, raising=False)
     FakeEngine.loads = 0
     with TestClient(create_app(FakeEngine)) as test_client:
         yield test_client
@@ -160,8 +169,11 @@ def test_alerts_endpoint_lists_stored_alerts(client) -> None:
     )
 
 
-def test_app_without_job_has_no_scheduler(client) -> None:
-    assert client.app.state.scheduler is None
+def test_app_without_job_schedules_only_the_daily_cleanup(client) -> None:
+    [scheduled] = client.app.state.scheduler.get_jobs()
+
+    assert scheduled.func is delete_old_rows
+    assert scheduled.trigger.interval.total_seconds() == RETENTION_CHECK_HOURS * 3600
 
 
 def test_drift_job_is_scheduled_at_the_configured_interval(tmp_path, monkeypatch) -> None:
@@ -169,9 +181,8 @@ def test_drift_job_is_scheduled_at_the_configured_interval(tmp_path, monkeypatch
     job = DriftJob([], window_size=500)
 
     with TestClient(create_app(FakeEngine, lambda: job)) as test_client:
-        [scheduled] = test_client.app.state.scheduler.get_jobs()
+        [scheduled] = [j for j in test_client.app.state.scheduler.get_jobs() if j.func == job.run]
 
-    assert scheduled.func == job.run
     assert scheduled.trigger.interval.total_seconds() == load_config().check_interval_seconds
     # Late checks must run, not be skipped (the default skips any check over 1 s late).
     assert scheduled.misfire_grace_time is None
@@ -294,3 +305,162 @@ def test_unrecorded_chat_never_needs_the_record_token(tmp_path, monkeypatch) -> 
 
         assert response.status_code == 200
         assert storage.recent_requests() == []
+
+
+def limited_client(tmp_path, monkeypatch, space: bool) -> TestClient:
+    """A client allowing 3 unrecorded prompts per minute per address, on a Space or not."""
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    monkeypatch.setenv(CHAT_RATE_LIMIT_ENV, "3/minute")
+    for name in (RECORD_TOKEN_ENV, REQUIRE_RECORD_TOKEN_ENV, demo.DEMO_TRAFFIC_ENV):
+        monkeypatch.delenv(name, raising=False)
+    if space:
+        monkeypatch.setenv(SPACE_ID_ENV, "someone/feature-monitor")
+    else:
+        monkeypatch.delenv(SPACE_ID_ENV, raising=False)
+    return TestClient(create_app(FakeEngine))
+
+
+def unrecorded(client: TestClient, forwarded: str | None = None) -> int:
+    headers = {"X-Forwarded-For": forwarded} if forwarded else {}
+    response = client.post("/chat", json={"prompt": "hi", "record": False}, headers=headers)
+    return response.status_code
+
+
+def test_unrecorded_prompts_are_rate_limited_per_address(tmp_path, monkeypatch) -> None:
+    with limited_client(tmp_path, monkeypatch, space=False) as client:
+        assert [unrecorded(client) for _ in range(4)] == [200, 200, 200, 429]
+        response = client.post("/chat", json={"prompt": "hi", "record": False})
+
+        assert "Too many prompts" in response.json()["detail"]
+        assert response.headers["Retry-After"] == "60"
+
+
+def test_recorded_prompts_are_not_rate_limited(tmp_path, monkeypatch) -> None:
+    with limited_client(tmp_path, monkeypatch, space=False) as client:
+        statuses = [client.post("/chat", json={"prompt": "hi"}).status_code for _ in range(5)]
+
+        assert statuses == [200] * 5
+
+
+def test_on_a_space_the_last_forwarded_address_is_the_key(tmp_path, monkeypatch) -> None:
+    with limited_client(tmp_path, monkeypatch, space=True) as client:
+        # A caller changing the entries it controls (all but the last) gains nothing.
+        statuses = [unrecorded(client, f"10.0.0.{i}, 198.51.100.1") for i in range(4)]
+        other = unrecorded(client, "198.51.100.2")
+
+        assert statuses == [200, 200, 200, 429]
+        assert other == 200
+
+
+def test_off_a_space_the_forwarded_header_is_ignored(tmp_path, monkeypatch) -> None:
+    with limited_client(tmp_path, monkeypatch, space=False) as client:
+        statuses = [unrecorded(client, f"198.51.100.{i}") for i in range(4)]
+
+        assert statuses == [200, 200, 200, 429]
+
+
+def admin_client(tmp_path, monkeypatch, token: str | None) -> TestClient:
+    """A client with demo traffic on (over tiny pools) and the given admin token."""
+    data, scenarios = tmp_path / "data", tmp_path / "scenarios"
+    data.mkdir()
+    scenarios.mkdir()
+    (data / "normal_test.jsonl").write_text(json.dumps({"text": "n"}) + "\n")
+    (scenarios / "calm.yaml").write_text(
+        "name: calm\nseed: 1\ntotal_requests: 2\nnormal_pool: normal_test\nshift_pool: null\n"
+        "schedule:\n  - {at: 0, shift: 0.0}\n  - {at: 2, shift: 0.0}\n"
+    )
+    monkeypatch.setattr(demo, "DATA_DIR", data)
+    monkeypatch.setattr(demo, "SCENARIO_DIR", scenarios)
+    monkeypatch.setenv(storage.DB_PATH_ENV, str(tmp_path / "test.db"))
+    monkeypatch.setenv(demo.DEMO_TRAFFIC_ENV, "1")
+    if token:
+        monkeypatch.setenv(ADMIN_TOKEN_ENV, token)
+    else:
+        monkeypatch.delenv(ADMIN_TOKEN_ENV, raising=False)
+    return TestClient(create_app(FakeEngine))
+
+
+@pytest.mark.parametrize(
+    ("token", "header", "name", "expected"),
+    [
+        (None, "anything", "calm", 403),
+        ("s3cret", None, "calm", 403),
+        ("s3cret", "wrong", "calm", 403),
+        ("s3cret", "s3cret", "nope", 404),
+        ("s3cret", "s3cret", "calm", 202),
+    ],
+)
+def test_starting_a_scenario_needs_the_admin_token(
+    tmp_path, monkeypatch, token, header, name, expected
+) -> None:
+    headers = {ADMIN_TOKEN_HEADER: header} if header else {}
+    with admin_client(tmp_path, monkeypatch, token) as client:
+        response = client.post("/admin/scenario", json={"name": name}, headers=headers)
+
+        assert response.status_code == expected
+
+
+def test_demo_status_reports_a_started_scenario(tmp_path, monkeypatch) -> None:
+    with admin_client(tmp_path, monkeypatch, "s3cret") as client:
+        assert client.get("/demo/status").json()["enabled"] is True
+        client.post(
+            "/admin/scenario", json={"name": "calm"}, headers={ADMIN_TOKEN_HEADER: "s3cret"}
+        )
+        # The thread may already be sending it, or have finished its 2 prompts.
+        status = client.get("/demo/status").json()
+
+        assert status["scenario"] in (
+            None,
+            {"name": "calm", "sent": 0, "total": 2},
+            {"name": "calm", "sent": 1, "total": 2},
+        )
+
+
+def test_demo_is_off_by_default(client) -> None:
+    assert client.get("/demo/status").json() == {"enabled": False, "warmup": None, "scenario": None}
+
+
+def test_admin_needs_demo_traffic_on(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv(ADMIN_TOKEN_ENV, "s3cret")
+    with record_token_client(tmp_path, monkeypatch, None, False) as client:
+        response = client.post(
+            "/admin/scenario", json={"name": "calm"}, headers={ADMIN_TOKEN_HEADER: "s3cret"}
+        )
+
+        assert response.status_code == 409
+
+
+class ListHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.lines: list[dict] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(json.loads(record.getMessage()))
+
+
+def test_each_request_logs_one_json_line_without_the_prompt(client) -> None:
+    handler = ListHandler()
+    request_log.addHandler(handler)
+    try:
+        client.post("/chat", json={"prompt": "secret words", "record": False})
+    finally:
+        request_log.removeHandler(handler)
+
+    # The startup cleanup may log from its own thread at the same time.
+    [line] = [entry for entry in handler.lines if entry["event"] == "http"]
+    assert (line["method"], line["path"], line["status"]) == ("POST", "/chat", 200)
+    assert (line["gen_ms"], line["extract_ms"], line["recorded"]) == (1.0, 2.0, False)
+    assert line["total_ms"] >= 0
+    assert "secret words" not in json.dumps(line)
+
+
+def test_cleanup_deletes_rows_older_than_the_retention(client) -> None:
+    storage.save_request(
+        "p", "r", "m", [], 1.0, 2.0, created_at=datetime.now(UTC) - timedelta(days=8)
+    )
+    storage.save_request("p", "r", "m", [], 1.0, 2.0)
+
+    delete_old_rows()
+
+    assert storage.total_requests() == 1

@@ -7,6 +7,7 @@ the default is `data/feature_monitor.db` at the repo root, whatever the working 
 
 **requests**: one row per monitored model call: UTC `created_at`, `prompt`, `reply`, `model_name`,
 an optional `scenario` tag, and `gen_ms`/`extract_ms` timings. Indexed on `created_at`.
+The demo traffic tags its rows `demo_normal`, or the name of the scenario it is running.
 
 **feature_hits**: one row per top-k SAE feature of a request: `feature_id`, `activation`, `rank`
 (1 = strongest). Keyed by `(request_id, rank)`; `request_id` must exist; indexed on `feature_id`.
@@ -37,6 +38,8 @@ let the database enforce one hit per rank per request.
   SQLite rounds each `created_at` down with `strftime('%s', ...)`.
 - Time windows are half-open, `[since, until)`, so back-to-back windows never count a
   request twice. `request_count` gives the denominator for feature frequencies.
+- Retention: once a day the app deletes requests (their hits cascade), drift checks and
+  alerts whose `created_at` is more than 7 days old (`delete_older_than`).
 - Deployment: a Hugging Face Space's disk is wiped on every restart, so the database there
   starts empty each time (the dashboard says so); a Storage Bucket mounted at `/data` would
   keep it, and none is attached. The Docker image sets

@@ -55,6 +55,8 @@ come up, and check `https://shedrach-feature-monitor.hf.space/health`.
   Hugging Face plan (PRO for a personal account); the CPU basic hardware itself is free.
 - **Space secret** `FEATURE_MONITOR_RECORD_TOKEN`: the token that recorded prompts must send.
   The image refuses all recorded prompts without it.
+- **Space secret** `FEATURE_MONITOR_ADMIN_TOKEN`: the token that starts demo scenarios.
+  Without it `POST /admin/scenario` refuses everything.
 - **GitHub secret** `HF_TOKEN`: a fine-grained Hugging Face token with write access to this
   Space only. It reaches hub-sync as an input and is passed to the `hf` CLI as an
   environment variable; GitHub masks it in logs and nothing in the workflow prints it.
@@ -63,12 +65,35 @@ come up, and check `https://shedrach-feature-monitor.hf.space/health`.
 To rotate the deploy token, make a new one with the same scope, replace the `HF_TOKEN`
 secret, then delete the old token on Hugging Face.
 
+## Running the demo
+
+The image sets `FEATURE_MONITOR_DEMO_TRAFFIC=1`, so after every start the Space fills its own
+database: normal prompts as fast as the model allows until 500 are stored (the dashboard shows
+"Warming up: n / 500"), then one every 20 seconds. Drift checks start once 500 are stored.
+
+To show an alert, start a scenario (2,000 requests; it pauses the trickle while it runs):
+
+```sh
+curl -X POST https://shedrach-feature-monitor.hf.space/admin/scenario \
+  -H 'content-type: application/json' -H "X-Admin-Token: $FEATURE_MONITOR_ADMIN_TOKEN" \
+  -d '{"name": "medical_ramp"}'
+```
+
+The names are the files in `traffic/scenarios/`: `normal_only`, `medical_ramp`,
+`new_topic_ramp`, `injection_ramp`. The dashboard says which one is running and how far it
+has got, so visitors can tell staged drift from real drift. A second start while one runs
+gets `409`. A restart stops a scenario, and the data with it.
+
+The Space's **Logs** tab (Container) shows one JSON line per request (`"event": "http"`) and
+per demo prompt (`"event": "demo"`), plus the daily cleanup (`"event": "retention"`).
+
 ## What the free hardware means
 
 - **Data resets.** The Space's disk is not persistent: the SQLite database in `/data` is
   wiped on every restart, redeploy and wake from sleep. Hugging Face sets `SPACE_ID` inside
   every Space; when it is set, `/health` returns `"storage_resets": true` and every dashboard
-  page shows "Demo data resets on restart". Keeping data would mean attaching a Storage
+  page shows "Demo data resets on restart"; the demo traffic then refills it. Keeping data
+  would mean attaching a Storage
   Bucket at `/data`, after which that notice would be wrong and would need changing.
 - **Sleep.** An unused Space on free hardware goes to sleep and starts again (empty) on the
   next visit. The Hub API reports this Space's sleep timeout as 172,800 s (48 hours).
