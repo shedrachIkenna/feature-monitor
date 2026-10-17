@@ -11,6 +11,7 @@ as static files at / after every API route, so the API paths always win. The pla
 from __future__ import annotations
 
 import os
+import secrets
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -41,6 +42,12 @@ EXTRACT_ENV = "FEATURE_MONITOR_EXTRACT"
 # waiting at once, and the rest get 429 straight away instead of piling up.
 MAX_CHAT_QUEUE_ENV = "FEATURE_MONITOR_MAX_CHAT_QUEUE"
 DEFAULT_MAX_CHAT_QUEUE = 4
+# When set, recorded prompts (record: true) must carry this secret in the X-Record-Token header,
+# so strangers cannot push traffic into the drift window. Unrecorded prompts never need it.
+RECORD_TOKEN_ENV = "FEATURE_MONITOR_RECORD_TOKEN"
+RECORD_TOKEN_HEADER = "X-Record-Token"
+# Set to "1" (the Docker image does) to refuse recorded prompts when no token is set.
+REQUIRE_RECORD_TOKEN_ENV = "FEATURE_MONITOR_REQUIRE_RECORD_TOKEN"
 # The playground labels one prompt's top 20 features; uncached labels each cost a Neuronpedia call.
 MAX_LABEL_IDS = 20
 LABEL_IDS_PATTERN = r"^\d+(,\d+)*$"
@@ -58,6 +65,19 @@ def max_chat_queue() -> int:
     if value < 1:
         raise ValueError(f"{MAX_CHAT_QUEUE_ENV} must be at least 1, got {value}")
     return value
+
+
+def check_record_token(expected: str | None, required: bool, given: str | None) -> None:
+    """Raise 403 unless a recorded prompt may be stored.
+
+    With no expected token, recording is open unless `required`; otherwise `given` must match.
+    """
+    if not expected:
+        if required:
+            raise HTTPException(403, "Recording is disabled on this server.")
+        return
+    if given is None or not secrets.compare_digest(given.encode(), expected.encode()):
+        raise HTTPException(403, f"Recorded prompts need a valid {RECORD_TOKEN_HEADER} header.")
 
 
 @dataclass(frozen=True)
@@ -168,6 +188,8 @@ def create_app(
 
     app = FastAPI(title="Feature Monitor", lifespan=lifespan)
     chat_limit = max_chat_queue()
+    record_token = os.environ.get(RECORD_TOKEN_ENV)
+    require_record_token = os.environ.get(REQUIRE_RECORD_TOKEN_ENV) == "1"
     # Only touched on the event loop, between awaits, so it needs no lock.
     chat_in_flight = 0
 
@@ -184,6 +206,10 @@ def create_app(
     @app.post("/chat")
     async def chat(body: ChatRequest, request: Request) -> ChatResponse:
         nonlocal chat_in_flight
+        if body.record:
+            check_record_token(
+                record_token, require_record_token, request.headers.get(RECORD_TOKEN_HEADER)
+            )
         if chat_in_flight >= chat_limit:
             raise HTTPException(
                 429,

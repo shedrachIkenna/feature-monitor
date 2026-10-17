@@ -23,6 +23,9 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 6. A dashboard served at `/` shows scores, alerts and drifting features; its Playground page
    runs single prompts without storing them (`POST /chat` with `record: false`). At most 4
    `/chat` requests run or wait at once; the rest get 429 (`FEATURE_MONITOR_MAX_CHAT_QUEUE`).
+   Recorded prompts need the `X-Record-Token` header when `FEATURE_MONITOR_RECORD_TOKEN` is
+   set, and are refused (403) when it is not and `FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1`, as
+   in the Docker image; so on the public Space only the token holder can add monitored traffic.
 7. It ships as one CPU-only Docker image on port 7860 (`Dockerfile`), with the models and the
    baseline features' labels downloaded at build time (`monitor/prefetch.py`) and the
    database under `/data`.
@@ -86,10 +89,6 @@ report it as a test of what only internal monitoring can see, not as a win over 
 
 ## Known gaps
 Things we know are missing, with when each must be fixed. Remove an item once it is fixed.
-- Anyone who can reach `POST /chat` can send `record: true` requests and so push their own
-  traffic into the drift window and raise alerts. The queue cap (`FEATURE_MONITOR_MAX_CHAT_QUEUE`,
-  default 4, 429 beyond it) stops bursts, not a steady stream. **Must decide before the Space
-  is public:** for example require a token for recorded requests, or turn recording off there.
 - Model versions are not pinned: GPT-2, the SAE and MiniLM are downloaded from the latest
   Hugging Face upload at build time, so a rebuild could get different weights. Optional; pin
   revisions for reproducible builds.
