@@ -70,6 +70,7 @@ secret, then delete the old token on Hugging Face.
 The image sets `FEATURE_MONITOR_DEMO_TRAFFIC=1`, so after every start the Space fills its own
 database: normal prompts as fast as the model allows until 500 are stored (the dashboard shows
 "Warming up: n / 500"), then one every 20 seconds. Drift checks start once 500 are stored.
+After the 2026-10-17 deploy that took about 11 minutes.
 
 To show an alert, start a scenario (2,000 requests; it pauses the trickle while it runs):
 
