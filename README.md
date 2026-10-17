@@ -1,3 +1,14 @@
+---
+title: Feature Monitor
+emoji: 🔍
+colorFrom: blue
+colorTo: gray
+sdk: docker
+app_port: 7860
+short_description: Drift alerts from GPT-2 sparse autoencoder features
+pinned: false
+---
+
 # Feature Monitor
 
 [![CI](https://github.com/shedrachIkenna/feature-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/shedrachIkenna/feature-monitor/actions/workflows/ci.yml)
@@ -112,6 +123,16 @@ against 6 to 9 natively. The second builds both in one multi-platform image
 and pushes it to a registry; whoever pulls it gets the variant that matches their machine.
 A Hugging Face Docker Space builds the `Dockerfile` itself on amd64, so pushing an image is
 not needed there.
+
+### Live demo
+
+The app runs on the Hugging Face Space
+[Shedrach/feature-monitor](https://huggingface.co/spaces/Shedrach/feature-monitor). Every
+commit on `main` that passes CI is uploaded to it by `.github/workflows/deploy.yml`, and the
+Space rebuilds the image. Its disk is not persistent, so the demo data resets whenever the
+Space restarts, redeploys or wakes from sleep; the dashboard says so. The YAML block at the
+top of this README is the Space's configuration. See [docs/deployment.md](docs/deployment.md)
+for how deploys work and how to roll back.
 
 See [docs/design.md](docs/design.md) for the design.
 

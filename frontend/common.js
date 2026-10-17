@@ -219,3 +219,21 @@ function drawChart(existing, canvas, config) {
   if (existing) existing.destroy();
   return new Chart(canvas, config);
 }
+
+/** On a Hugging Face Space the disk is wiped on every restart; say so under the header. */
+async function showStorageNotice() {
+  try {
+    if (!(await api("/health")).storage_resets) return;
+  } catch (_) {
+    return;
+  }
+  const notice = el(
+    "p",
+    { class: "notice", role: "note" },
+    "Demo data resets on restart: this server's database is wiped whenever the Space restarts, " +
+      "redeploys or wakes from sleep, so history starts empty after that.",
+  );
+  document.querySelector("header").after(notice);
+}
+
+showStorageNotice();
