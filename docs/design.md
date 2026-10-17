@@ -115,9 +115,9 @@ Things we know are missing, with when each must be fixed. Remove an item once it
   deploy can fail if Hugging Face or Neuronpedia is down at that moment. Optional.
 - The rate limit's counters live in the app's memory: they reset on restart and would not be
   shared between replicas (the Space runs one). Optional.
-- On CPU the demo is slow: in the Docker image on this Mac it sent 0.36 prompts per second,
-  so warm-up takes about 23 minutes and a 2,000-request scenario about 90. Optional; a
-  shorter demo scenario would show an alert sooner.
+- On CPU the demo is slow: on the Space the warm-up sent about 47 prompts a minute and
+  reached 500 in about 11 minutes, so a 2,000-request scenario would take about 43 minutes
+  at that rate (not measured). Optional; a shorter demo scenario would show an alert sooner.
 
 ## Open questions
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the
