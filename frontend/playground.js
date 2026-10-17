@@ -59,9 +59,8 @@ async function run(prompt) {
     setStatus(status, features.length ? "" : "Feature extraction is switched off on this server.");
     if (features.length) await fillLabels(features);
   } catch (error) {
-    // 429: the server's queue of prompts is full.
-    const message =
-      error.status === 429 ? "The model is busy; try again in a moment." : `Could not run the prompt: ${error.message}`;
+    // 429: the queue of prompts is full, or this address sent too many; the server says which.
+    const message = error.status === 429 ? error.detail : `Could not run the prompt: ${error.message}`;
     setStatus(status, message, true);
   } finally {
     button.disabled = false;

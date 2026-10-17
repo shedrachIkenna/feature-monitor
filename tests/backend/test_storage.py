@@ -187,3 +187,27 @@ def test_strong_hits_keeps_top_ranks_newest_first(db) -> None:
     ]
     assert hits[0]["created_at"] == "2026-10-15T12:01:00.000000Z"
     assert [h["prompt"] for h in storage.strong_hits(7, max_rank=2, limit=1)] == ["rank 2"]
+
+
+def test_total_requests_counts_every_row(db) -> None:
+    assert storage.total_requests() == 0
+    save([], T0)
+    save([], T0 + timedelta(days=30))
+
+    assert storage.total_requests() == 2
+
+
+def test_delete_older_than_removes_only_old_rows_and_their_hits(db) -> None:
+    old = save([FeatureHit(1, 1.0)], T0 - timedelta(days=8))
+    new = save([FeatureHit(1, 1.0)], T0)
+    storage.save_drift_check("sae", 0.1, 0.2, 500, old, new, created_at=T0 - timedelta(days=8))
+    storage.save_drift_check("sae", 0.1, 0.2, 500, old, new, created_at=T0)
+    storage.save_alert("sae", 0.3, {}, created_at=T0 - timedelta(days=8))
+
+    deleted = storage.delete_older_than(T0 - timedelta(days=7))
+
+    assert deleted == {"requests": 1, "drift_checks": 1, "alerts": 1}
+    assert [r["id"] for r in storage.recent_requests()] == [new]
+    hits = storage.hits_for_requests([old, new])
+    assert (len(hits[old]), len(hits[new])) == (0, 1)
+    assert storage.list_alerts() == []

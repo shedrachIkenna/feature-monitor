@@ -58,6 +58,7 @@ async function api(path, init) {
     }
     const error = new Error(`${path}: ${response.status} ${detail}`);
     error.status = response.status;
+    error.detail = detail;
     throw error;
   }
   return response.json();
@@ -220,20 +221,44 @@ function drawChart(existing, canvas, config) {
   return new Chart(canvas, config);
 }
 
-/** On a Hugging Face Space the disk is wiped on every restart; say so under the header. */
-async function showStorageNotice() {
+/** Notes under the header: storage that resets on the Space, demo warm-up, a running scenario. */
+async function showServerNotices() {
+  let health, demo;
   try {
-    if (!(await api("/health")).storage_resets) return;
+    [health, demo] = await Promise.all([api("/health"), api("/demo/status")]);
   } catch (_) {
     return;
   }
-  const notice = el(
-    "p",
-    { class: "notice", role: "note" },
-    "Demo data resets on restart: this server's database is wiped whenever the Space restarts, " +
-      "redeploys or wakes from sleep, so history starts empty after that.",
-  );
-  document.querySelector("header").after(notice);
+  const lines = [];
+  if (health.storage_resets) {
+    lines.push(
+      "Demo data resets on restart: this server's database is wiped whenever the Space restarts, " +
+        "redeploys or wakes from sleep, so history starts empty after that.",
+    );
+  }
+  if (demo.warmup) {
+    lines.push(
+      `Warming up: ${demo.warmup.stored} / ${demo.warmup.target} requests stored. Drift checks ` +
+        "start once the window is full; until then the charts stay empty.",
+    );
+  }
+  if (demo.scenario) {
+    lines.push(
+      `Demo scenario running: ${demo.scenario.name}, request ${demo.scenario.sent} / ` +
+        `${demo.scenario.total}. This drift is staged on purpose to show the detectors at work.`,
+    );
+  } else if (demo.enabled) {
+    lines.push(
+      "Live traffic here is a steady trickle of normal support questions sent by the server itself.",
+    );
+  }
+  let box = document.getElementById("server-notices");
+  if (!box) {
+    box = el("div", { id: "server-notices" });
+    document.querySelector("header").after(box);
+  }
+  box.replaceChildren(...lines.map((line) => el("p", { class: "notice", role: "note" }, line)));
 }
 
-showStorageNotice();
+showServerNotices();
+setInterval(showServerNotices, REFRESH_MS);

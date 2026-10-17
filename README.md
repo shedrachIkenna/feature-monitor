@@ -35,13 +35,19 @@ uv run uvicorn backend.app:app
 curl -X POST localhost:8000/chat -H 'content-type: application/json' -d '{"prompt": "Hello"}'
 ```
 
-Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /features/stats?minutes=60`, `GET /alerts`, `GET /dashboard/timeline`, `GET /dashboard/drifting`, `GET /dashboard/feature/{id}`, `GET /dashboard/labels?ids=1,2,3`.
+Endpoints: `GET /health`, `POST /chat`, `GET /features/recent?limit=50`, `GET /features/stats?minutes=60`, `GET /alerts`, `GET /dashboard/timeline`, `GET /dashboard/drifting`, `GET /dashboard/feature/{id}`, `GET /dashboard/labels?ids=1,2,3`, `GET /demo/status`, `POST /admin/scenario`.
 
 `POST /chat` stores every request as monitored traffic. Send `"record": false` to get the reply and features without storing anything; the Playground page does this, so trying prompts by hand never moves the drift scores, raises alerts, or shows up as example prompts.
 
 The model answers one prompt at a time. At most 4 `/chat` requests may be running or waiting at once (set `FEATURE_MONITOR_MAX_CHAT_QUEUE` to change it); the rest get `429 Too Many Requests` with `Retry-After: 1` and are neither run nor stored.
 
 Recorded prompts can be locked with a secret so strangers cannot push traffic into the drift window. Set `FEATURE_MONITOR_RECORD_TOKEN` on the server, and send the same value in an `X-Record-Token` header with every `"record": true` request; a missing or wrong token gets `403 Forbidden`. The traffic generator sends the header when `FEATURE_MONITOR_RECORD_TOKEN` is set in its shell. Without a token the server records anything, unless `FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1` is set, in which case it refuses all recorded prompts. Unrecorded prompts (`"record": false`, the Playground) never need the token.
+
+Unrecorded prompts are also rate limited per client address: 10 per minute by default (set `FEATURE_MONITOR_CHAT_RATE_LIMIT`, e.g. `30/minute`); the next ones get `429` with `Retry-After: 60`. Recorded prompts are exempt, since on the Space they already need the token. Off a Space the address is the direct connection's; on a Space it is the last `X-Forwarded-For` entry, which Hugging Face's proxy adds (the earlier entries come from the caller and can be faked).
+
+**Demo traffic.** With `FEATURE_MONITOR_DEMO_TRAFFIC=1` (the Docker image sets it), a background thread sends normal prompts from the `normal_test` pool straight to the model and stores them with scenario `demo_normal`: as fast as it can until 500 requests are stored, so drift checks can start, then one every 20 seconds (`FEATURE_MONITOR_DEMO_INTERVAL_SECONDS`). It only sends when no `/chat` is running or waiting. `POST /admin/scenario` with `{"name": "medical_ramp"}` (or any file in `traffic/scenarios/`) and an `X-Admin-Token` header matching `FEATURE_MONITOR_ADMIN_TOKEN` runs that scenario through the same thread, pausing the trickle; without that variable the endpoint refuses everything. `GET /demo/status` shows the warm-up and any running scenario, and the dashboard shows both.
+
+Requests, drift checks and alerts older than 7 days are deleted once a day. Every request is logged to stdout as one JSON line (time, method, path, status, total, generation and extraction ms, whether it was recorded), with no prompt text and no client address.
 
 ### Open the dashboard
 
@@ -130,7 +136,8 @@ The app runs on the Hugging Face Space
 [Shedrach/feature-monitor](https://huggingface.co/spaces/Shedrach/feature-monitor). Every
 commit on `main` that passes CI is uploaded to it by `.github/workflows/deploy.yml`, and the
 Space rebuilds the image. Its disk is not persistent, so the demo data resets whenever the
-Space restarts, redeploys or wakes from sleep; the dashboard says so. The YAML block at the
+Space restarts, redeploys or wakes from sleep; the dashboard says so. The demo traffic refills
+it: drift checks start once 500 requests are stored again. The YAML block at the
 top of this README is the Space's configuration. See [docs/deployment.md](docs/deployment.md)
 for how deploys work and how to roll back.
 

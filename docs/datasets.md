@@ -3,7 +3,8 @@
 `traffic/prepare_data.py` builds five prompt pools from three Hugging Face datasets and
 writes them to `traffic/data/<pool>.jsonl` (one `{"text": ...}` per line). The files are
 not committed: run `uv run python -m traffic.prepare_data` to recreate them. With seed 0
-the output is byte-identical between runs.
+the output is byte-identical between runs. The Docker image runs the same script while it is
+built, so the app's demo traffic (`backend/demo.py`) can draw from the pools.
 
 ## Sources and licences
 

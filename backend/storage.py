@@ -184,6 +184,26 @@ def request_count(since: datetime, until: datetime, path: Path | None = None) ->
     return count
 
 
+def total_requests(path: Path | None = None) -> int:
+    """Count every stored request."""
+    with _connect(path) as conn:
+        (count,) = conn.execute("SELECT COUNT(*) FROM requests").fetchone()
+    return count
+
+
+def delete_older_than(cutoff: datetime, path: Path | None = None) -> dict[str, int]:
+    """Delete requests (their hits cascade), drift checks and alerts created before `cutoff`.
+
+    Returns the number of rows deleted from each table.
+    """
+    timestamp = format_timestamp(cutoff)
+    with _connect(path) as conn, conn:
+        return {
+            table: conn.execute(f"DELETE FROM {table} WHERE created_at < ?", (timestamp,)).rowcount
+            for table in ("requests", "drift_checks", "alerts")
+        }
+
+
 def save_alert(
     kind: str,
     score: float,

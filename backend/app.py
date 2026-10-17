@@ -6,12 +6,19 @@ The model work sits behind an `Engine`, so tests can build the app with a fake o
 The /dashboard endpoints (backend/dashboard.py) read those back for the frontend, which is served
 as static files at / after every API route, so the API paths always win. The playground page sends
 `record: false`, so its prompts are answered but never stored as monitored traffic.
+
+On the live Space, backend/demo.py keeps a trickle of normal traffic flowing and runs drift
+scenarios that an admin starts. Unrecorded prompts are rate limited per client address, a daily
+job deletes rows older than RETENTION_DAYS, and every request is logged as one JSON line.
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import secrets
+import sys
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
@@ -26,9 +33,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Path, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
+from limits import parse
+from limits.storage import MemoryStorage
+from limits.strategies import MovingWindowRateLimiter
 from pydantic import BaseModel, Field
 
-from backend import dashboard, storage
+from backend import dashboard, demo, storage
 from monitor.config import load_config
 from monitor.extract import FeatureHit, extract_features
 from monitor.job import Detector, DriftJob, load_drift_job
@@ -50,6 +60,17 @@ RECORD_TOKEN_HEADER = "X-Record-Token"
 REQUIRE_RECORD_TOKEN_ENV = "FEATURE_MONITOR_REQUIRE_RECORD_TOKEN"
 # Hugging Face sets this inside every Space, whose disk (and so the database) is wiped on restart.
 SPACE_ID_ENV = "SPACE_ID"
+# Unrecorded prompts (the Playground) allowed per client address; recorded prompts are exempt,
+# since on the Space they already need the record token. Format: limits' "N/minute" notation.
+CHAT_RATE_LIMIT_ENV = "FEATURE_MONITOR_CHAT_RATE_LIMIT"
+DEFAULT_CHAT_RATE_LIMIT = "10/minute"
+# The admin endpoints (starting a demo scenario) need this secret in X-Admin-Token; unset, they
+# refuse everything.
+ADMIN_TOKEN_ENV = "FEATURE_MONITOR_ADMIN_TOKEN"
+ADMIN_TOKEN_HEADER = "X-Admin-Token"
+# Requests, drift checks and alerts older than this are deleted, checked once a day.
+RETENTION_DAYS = 7
+RETENTION_CHECK_HOURS = 24
 # The playground labels one prompt's top 20 features; uncached labels each cost a Neuronpedia call.
 MAX_LABEL_IDS = 20
 LABEL_IDS_PATTERN = r"^\d+(,\d+)*$"
@@ -69,6 +90,44 @@ def max_chat_queue() -> int:
     return value
 
 
+def tokens_match(given: str | None, expected: str) -> bool:
+    """Compare a secret in constant time, so response timing does not leak it."""
+    return given is not None and secrets.compare_digest(given.encode(), expected.encode())
+
+
+def client_address(request: Request, behind_proxy: bool) -> str:
+    """The caller's address, used as the rate-limit key.
+
+    Behind Hugging Face's proxy, the last X-Forwarded-For entry is the address the proxy saw;
+    earlier entries are whatever the caller sent and can be faked. Without a proxy the header
+    is the caller's own text, so the direct connection's address is used instead.
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    if behind_proxy and forwarded:
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _request_logger() -> logging.Logger:
+    """A logger that writes each message as-is to stdout, one JSON object per line."""
+    logger = logging.getLogger("feature_monitor.requests")
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    return logger
+
+
+request_log = _request_logger()
+
+
+def log_json(**fields: object) -> None:
+    """Log one JSON line with a UTC timestamp. Never pass prompt text or client addresses."""
+    request_log.info(json.dumps({"ts": storage.format_timestamp(datetime.now(UTC)), **fields}))
+
+
 def check_record_token(expected: str | None, required: bool, given: str | None) -> None:
     """Raise 403 unless a recorded prompt may be stored.
 
@@ -78,7 +137,7 @@ def check_record_token(expected: str | None, required: bool, given: str | None) 
         if required:
             raise HTTPException(403, "Recording is disabled on this server.")
         return
-    if given is None or not secrets.compare_digest(given.encode(), expected.encode()):
+    if not tokens_match(given, expected):
         raise HTTPException(403, f"Recorded prompts need a valid {RECORD_TOKEN_HEADER} header.")
 
 
@@ -138,6 +197,10 @@ class GPT2Engine:
         return EngineResult(reply, hits, gen_ms, extract_ms)
 
 
+class ScenarioRequest(BaseModel):
+    name: str
+
+
 class ChatRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=2000)
     scenario: str | None = None
@@ -160,18 +223,30 @@ class ChatResponse(BaseModel):
 def create_app(
     load_engine: Callable[[], Engine], load_job: Callable[[], DriftJob] | None = None
 ) -> FastAPI:
-    """Build the API; `load_engine` and `load_job` run once at startup. No job, no scheduler."""
+    """Build the API; `load_engine` and `load_job` run once at startup. No job, no drift checks.
+
+    Demo traffic starts only when FEATURE_MONITOR_DEMO_TRAFFIC=1 (the Docker image sets it).
+    """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         storage.init_db()
         app.state.engine = await run_in_threadpool(load_engine)
-        app.state.scheduler = None
         app.state.job = None
+        scheduler = BackgroundScheduler()
+        # Runs once at startup, then daily; a check that starts late still runs.
+        scheduler.add_job(
+            delete_old_rows,
+            "interval",
+            hours=RETENTION_CHECK_HOURS,
+            next_run_time=datetime.now(UTC),
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=None,
+        )
         if load_job is not None:
             job = await run_in_threadpool(load_job)
             app.state.job = job
-            scheduler = BackgroundScheduler()
             # One check at a time. A check that starts late (the server is busy with a request)
             # still runs instead of being skipped, and several missed checks run once.
             scheduler.add_job(
@@ -182,19 +257,60 @@ def create_app(
                 coalesce=True,
                 misfire_grace_time=None,
             )
-            scheduler.start()
-            app.state.scheduler = scheduler
+        scheduler.start()
+        app.state.scheduler = scheduler
+        app.state.demo = None
+        if demo.demo_enabled():
+            app.state.demo = demo.DemoTraffic(
+                app.state.engine,
+                busy=lambda: chat_in_flight > 0,
+                warmup_target=load_config().window_size,
+                interval_s=demo.demo_interval(),
+                on_prompt=lambda label, total_ms, result: log_json(
+                    event="demo",
+                    scenario=label,
+                    total_ms=round(total_ms, 1),
+                    gen_ms=round(result.gen_ms, 1),
+                    extract_ms=round(result.extract_ms, 1),
+                ),
+            )
+            app.state.demo.start()
         yield
-        if app.state.scheduler is not None:
-            app.state.scheduler.shutdown(wait=False)
+        if app.state.demo is not None:
+            await run_in_threadpool(app.state.demo.stop)
+        scheduler.shutdown(wait=False)
 
     app = FastAPI(title="Feature Monitor", lifespan=lifespan)
     chat_limit = max_chat_queue()
     record_token = os.environ.get(RECORD_TOKEN_ENV)
     require_record_token = os.environ.get(REQUIRE_RECORD_TOKEN_ENV) == "1"
     storage_resets = SPACE_ID_ENV in os.environ
-    # Only touched on the event loop, between awaits, so it needs no lock.
+    admin_token = os.environ.get(ADMIN_TOKEN_ENV)
+    chat_rate = parse(os.environ.get(CHAT_RATE_LIMIT_ENV, DEFAULT_CHAT_RATE_LIMIT))
+    rate_limiter = MovingWindowRateLimiter(MemoryStorage())
+    # Only changed on the event loop, between awaits, so it needs no lock; the demo thread
+    # only reads it.
     chat_in_flight = 0
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next: Callable) -> object:
+        start = time.perf_counter()
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            return response
+        finally:
+            log_json(
+                event="http",
+                method=request.method,
+                path=request.url.path,
+                status=status,
+                total_ms=round((time.perf_counter() - start) * 1000, 1),
+                gen_ms=getattr(request.state, "gen_ms", None),
+                extract_ms=getattr(request.state, "extract_ms", None),
+                recorded=getattr(request.state, "recorded", None),
+            )
 
     @app.get("/health")
     def health(request: Request) -> dict:
@@ -214,6 +330,12 @@ def create_app(
             check_record_token(
                 record_token, require_record_token, request.headers.get(RECORD_TOKEN_HEADER)
             )
+        elif not rate_limiter.hit(chat_rate, client_address(request, storage_resets)):
+            raise HTTPException(
+                429,
+                f"Too many prompts from your address (limit {chat_rate}); try again in a minute.",
+                headers={"Retry-After": "60"},
+            )
         if chat_in_flight >= chat_limit:
             raise HTTPException(
                 429,
@@ -224,6 +346,9 @@ def create_app(
         chat_in_flight += 1
         try:
             result = await run_in_threadpool(engine.run, body.prompt)
+            request.state.gen_ms = round(result.gen_ms, 1)
+            request.state.extract_ms = round(result.extract_ms, 1)
+            request.state.recorded = body.record
             request_id = None
             if body.record:
                 request_id = await run_in_threadpool(
@@ -245,6 +370,32 @@ def create_app(
                 FeatureOut(feature_id=h.feature_id, activation=h.activation) for h in result.hits
             ],
         )
+
+    @app.get("/demo/status")
+    def demo_status(request: Request) -> dict:
+        traffic: demo.DemoTraffic | None = request.app.state.demo
+        if traffic is None:
+            return {"enabled": False, "warmup": None, "scenario": None}
+        return {"enabled": True, **traffic.status()}
+
+    @app.post("/admin/scenario", status_code=202)
+    def start_scenario(body: ScenarioRequest, request: Request) -> dict:
+        if not admin_token:
+            raise HTTPException(403, "Admin endpoints are disabled on this server.")
+        if not tokens_match(request.headers.get(ADMIN_TOKEN_HEADER), admin_token):
+            raise HTTPException(403, f"Admin endpoints need a valid {ADMIN_TOKEN_HEADER} header.")
+        traffic: demo.DemoTraffic | None = request.app.state.demo
+        if traffic is None:
+            raise HTTPException(409, "Demo traffic is off on this server.")
+        try:
+            traffic.start_scenario(body.name)
+        except KeyError:
+            raise HTTPException(
+                404, f"Unknown scenario; choose one of {demo.scenario_names()}."
+            ) from None
+        except RuntimeError as error:
+            raise HTTPException(409, str(error)) from None
+        return traffic.status()
 
     @app.get("/features/recent")
     def features_recent(limit: int = Query(50, ge=1, le=500)) -> list[dict]:
@@ -301,6 +452,12 @@ def create_app(
 
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
     return app
+
+
+def delete_old_rows() -> None:
+    """Delete rows older than RETENTION_DAYS and log how many went from each table."""
+    deleted = storage.delete_older_than(datetime.now(UTC) - timedelta(days=RETENTION_DAYS))
+    log_json(event="retention", days=RETENTION_DAYS, deleted=deleted)
 
 
 def check_bucket(bucket_minutes: int) -> int:

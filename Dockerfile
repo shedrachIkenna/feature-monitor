@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # Feature Monitor on CPU, in three stages; only the last one ships.
 #   builder: installs the locked Python packages into /app/.venv with uv.
-#   assets:  downloads GPT-2, the SAE, the embedder and the baseline features' labels.
+#   assets:  downloads GPT-2, the SAE, the embedder, the baseline features' labels and the
+#            prompt datasets, from which it builds the traffic pools for the demo traffic.
 #   runtime: a fresh slim image with the venv, the downloads and the code, run as uid 1000.
 
 ARG PYTHON_IMAGE=python:3.12-slim-bookworm
@@ -27,17 +28,23 @@ RUN --mount=type=cache,target=/hf-cache \
     HF_HOME=/hf-cache .venv/bin/python -m monitor.prefetch models \
     && mkdir -p /app/.cache && cp -a /hf-cache /app/.cache/huggingface
 RUN .venv/bin/python -m monitor.prefetch labels
+# Seeded, so the pools are the same as a local `uv run python -m traffic.prepare_data`.
+COPY traffic/__init__.py traffic/prepare_data.py traffic/
+RUN --mount=type=cache,target=/hf-cache \
+    HF_HOME=/hf-cache .venv/bin/python -m traffic.prepare_data
 
 FROM ${PYTHON_IMAGE} AS runtime
 # Hugging Face Spaces runs containers as uid 1000, so that user owns everything it writes to.
 RUN useradd --create-home --uid 1000 user && mkdir /data && chown user:user /data
 # HF_HUB_OFFLINE: load models from HF_HOME only, never from the network.
 # REQUIRE_RECORD_TOKEN: refuse recorded prompts unless FEATURE_MONITOR_RECORD_TOKEN is set.
+# DEMO_TRAFFIC: send a trickle of normal prompts in the background (backend/demo.py).
 ENV PATH=/app/.venv/bin:$PATH \
     HF_HOME=/app/.cache/huggingface \
     HF_HUB_OFFLINE=1 \
     FEATURE_MONITOR_DB=/data/feature_monitor.db \
     FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1 \
+    FEATURE_MONITOR_DEMO_TRAFFIC=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=builder --chown=user:user /app/.venv .venv
@@ -45,8 +52,13 @@ COPY --from=assets --chown=user:user /app/.cache .cache
 COPY --chown=user:user backend/ backend/
 COPY --chown=user:user frontend/ frontend/
 COPY --chown=user:user monitor/ monitor/
+COPY --chown=user:user traffic/__init__.py traffic/generate.py traffic/
+COPY --chown=user:user traffic/scenarios/ traffic/scenarios/
+COPY --from=assets --chown=user:user /app/traffic/data traffic/data
 # Writable: the app adds labels of features outside the baseline on first use.
 COPY --from=assets --chown=user:user /app/monitor/labels_cache.json monitor/labels_cache.json
 USER user
 EXPOSE 7860
-CMD ["python", "-m", "uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# No access log: the app logs one JSON line per request itself, without client addresses.
+CMD ["python", "-m", "uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "7860", \
+     "--no-access-log"]

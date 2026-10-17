@@ -24,9 +24,13 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import httpx
 import yaml
+
+if TYPE_CHECKING:
+    # httpx is a dev dependency; the app imports this module for build_sequence without it.
+    import httpx
 
 DATA_DIR = Path(__file__).parent / "data"
 RUNS_DIR = Path(__file__).parent / "runs"
@@ -86,7 +90,7 @@ def load_pool(name: str, data_dir: Path = DATA_DIR) -> list[str]:
         return [json.loads(line)["text"] for line in f]
 
 
-def _draws(pool: list[str], rng: random.Random) -> Iterator[str]:
+def draws(pool: list[str], rng: random.Random) -> Iterator[str]:
     """Yield the pool in shuffled order, reshuffling each time it runs out."""
     while True:
         order = list(pool)
@@ -97,9 +101,9 @@ def _draws(pool: list[str], rng: random.Random) -> Iterator[str]:
 def build_sequence(scenario: Scenario, pools: dict[str, list[str]]) -> list[dict]:
     """The exact, seeded prompt sequence for a scenario, with ground truth per request."""
     positions_rng = random.Random(f"{scenario.seed}:positions")
-    normal = _draws(pools[scenario.normal_pool], random.Random(f"{scenario.seed}:normal"))
+    normal = draws(pools[scenario.normal_pool], random.Random(f"{scenario.seed}:normal"))
     shift = (
-        _draws(pools[scenario.shift_pool], random.Random(f"{scenario.seed}:shift"))
+        draws(pools[scenario.shift_pool], random.Random(f"{scenario.seed}:shift"))
         if scenario.shift_pool
         else None
     )
@@ -157,6 +161,8 @@ def send(rows: list[dict], scenario_name: str, client: httpx.Client) -> Iterator
 
 
 def main() -> None:
+    import httpx
+
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("scenario", type=Path)
     parser.add_argument("--dry-run", action="store_true", help="write the sequence, send nothing")

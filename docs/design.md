@@ -26,9 +26,20 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
    Recorded prompts need the `X-Record-Token` header when `FEATURE_MONITOR_RECORD_TOKEN` is
    set, and are refused (403) when it is not and `FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1`, as
    in the Docker image; so on the public Space only the token holder can add monitored traffic.
+   Unrecorded prompts are rate limited per client address (`FEATURE_MONITOR_CHAT_RATE_LIMIT`,
+   default 10 per minute, with the `limits` library); on a Space the address is the last
+   `X-Forwarded-For` entry, the one Hugging Face's proxy appends.
 7. It ships as one CPU-only Docker image on port 7860 (`Dockerfile`), with the models and the
-   baseline features' labels downloaded at build time (`monitor/prefetch.py`) and the
-   database under `/data`.
+   baseline features' labels downloaded at build time (`monitor/prefetch.py`), the traffic
+   pools built at build time (`traffic/prepare_data.py`), and the database under `/data`.
+   With `FEATURE_MONITOR_DEMO_TRAFFIC=1`, as in the image, `backend/demo.py` sends normal
+   prompts (`normal_test`, tagged `demo_normal`) straight to the model from a background
+   thread, only while no visitor's `/chat` is running or waiting: at full speed until 500
+   requests are stored, then one every 20 seconds. `POST /admin/scenario`, behind
+   `FEATURE_MONITOR_ADMIN_TOKEN`, runs a scenario from `traffic/scenarios/` through the same
+   thread; the dashboard shows the warm-up and any running scenario as staged. A daily job
+   deletes requests, drift checks and alerts older than 7 days, and each request is logged
+   as one JSON line without prompt text or client address.
 8. GitHub Actions CI (`.github/workflows/ci.yml`) runs on every push and pull request: ruff
    check, ruff format check and the tests without `requires_model` (offline), plus a Docker
    build that is not pushed. When CI passes on a push to `main`, `.github/workflows/deploy.yml`
@@ -102,6 +113,11 @@ Things we know are missing, with when each must be fixed. Remove an item once it
 - A Space rebuild downloads the models and the 2,488 baseline labels while building the
   image (unless Hugging Face's builder reuses cached layers, which we have not checked), so a
   deploy can fail if Hugging Face or Neuronpedia is down at that moment. Optional.
+- The rate limit's counters live in the app's memory: they reset on restart and would not be
+  shared between replicas (the Space runs one). Optional.
+- On CPU the demo is slow: in the Docker image on this Mac it sent 0.36 prompts per second,
+  so warm-up takes about 23 minutes and a 2,000-request scenario about 90. Optional; a
+  shorter demo scenario would show an alert sooner.
 
 ## Open questions
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the
