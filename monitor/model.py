@@ -14,6 +14,7 @@ import torch
 import yaml
 from sae_lens import SAE
 from transformer_lens.model_bridge import TransformerBridge
+from transformers import AutoConfig
 
 PROFILES_PATH = Path(__file__).resolve().with_name("profiles.yaml")
 PROFILE_ENV = "FEATURE_MONITOR_PROFILE"
@@ -60,11 +61,30 @@ def active_profile() -> Profile:
     return profiles[name]
 
 
+def truncation(profile: Profile) -> dict[str, int]:
+    """Config override keeping only the blocks up to the SAE's layer (later ones cannot affect it)."""
+    config = AutoConfig.from_pretrained(profile.model_name)
+    # TransformerLens writes overrides straight into the config, past its name aliases.
+    key = config.attribute_map.get("num_hidden_layers", "num_hidden_layers")
+    return {key: profile.layer + 1}
+
+
 @lru_cache(maxsize=1)
-def _load(profile: Profile, device: str) -> tuple[TransformerBridge, SAE]:
-    """Load one profile on one device; a new pair replaces the cached one to free memory."""
+def load_profile(
+    profile: Profile, device: str = "cpu", truncate: bool = False
+) -> tuple[TransformerBridge, SAE]:
+    """Load a profile's model and SAE on one device, keeping only the latest pair cached.
+
+    truncate=True drops the blocks after the SAE's layer: less memory and the same activations
+    at the SAE, but no generation, so only offline extraction uses it. The cached pair is
+    released only after the next one has loaded; call load_profile.cache_clear() first when two
+    would not fit in memory together.
+    """
     model = TransformerBridge.boot_transformers(
-        profile.model_name, device=device, dtype=DTYPES[profile.dtype]
+        profile.model_name,
+        device=device,
+        dtype=DTYPES[profile.dtype],
+        hf_config_overrides=truncation(profile) if truncate else None,
     )
     # Compatibility mode gives the blocks.N.hook_* names the SAEs use.
     model.enable_compatibility_mode(no_processing=not profile.process_weights)
@@ -74,7 +94,7 @@ def _load(profile: Profile, device: str) -> tuple[TransformerBridge, SAE]:
 
 def load_model_and_sae(device: str = "cpu") -> tuple[TransformerBridge, SAE]:
     """Load the active profile's model and SAE once per process."""
-    return _load(active_profile(), device)
+    return load_profile(active_profile(), device)
 
 
 def main() -> None:

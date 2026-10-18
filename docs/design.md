@@ -113,7 +113,10 @@ report it as a test of what only internal monitoring can see, not as a win over 
   detectors (SAE features and mean embedding distance). It writes one row per run to
   `eval/results/experiment_runs.csv` and one per alert to `experiment_alerts.csv`. The cache
   makes the comparison cheaper (the model runs once per prompt) and fairer (every detector and
-  seed sees the same representation of the same prompt). There, an alert is a window that rises
+  seed sees the same representation of the same prompt). Extraction there loads the model cut
+  after the SAE's layer, which gives bit-identical features with less memory and time (checked
+  for both profiles); the live app keeps the full model, which it needs to generate replies.
+  There, an alert is a window that rises
   above the threshold after one at or below it, and false alarms are alerts per 1,000 requests
   on `normal_only`.
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
