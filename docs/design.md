@@ -139,6 +139,10 @@ report it as a test of what only internal monitoring can see, not as a win over 
 
 ## Known gaps
 Things we know are missing, with when each must be fixed. Remove an item once it is fixed.
+- Gemma 2 2B features are extracted at bfloat16, and whether float32 would give other top-20
+  sets is untested: float32 Gemma does not fit in this Mac's memory even cut after layer 16.
+  Optional; a cloud GPU run of `eval/precision_check.py` would settle it, and only Gemma's
+  cache would need redoing if it disagrees.
 - Model versions are not pinned: GPT-2, the SAE and MiniLM are downloaded from the latest
   Hugging Face upload at build time, so a rebuild could get different weights. Optional; pin
   revisions for reproducible builds.
