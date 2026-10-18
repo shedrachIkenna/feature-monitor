@@ -2,6 +2,8 @@
 // chart styling and safe DOM building (prompts are user text, so never use innerHTML for them).
 
 const REFRESH_MS = 30000;
+// The banner's warm-up and scenario counts are checked this often while they move.
+const DEMO_LIVE_MS = 2000;
 const Y_AXIS_WIDTH = 64;
 
 // Each range picks a bucket size the API supports: 1-minute steps for short scenario runs.
@@ -221,44 +223,77 @@ function drawChart(existing, canvas, config) {
   return new Chart(canvas, config);
 }
 
-/** Notes under the header: storage that resets on the Space, demo warm-up, a running scenario. */
-async function showServerNotices() {
-  let health, demo;
-  try {
-    [health, demo] = await Promise.all([api("/health"), api("/demo/status")]);
-  } catch (_) {
-    return;
+/** How long to wait before checking /demo/status again: often while counts are moving. */
+function noticeDelay(demo) {
+  return demo && (demo.warmup || demo.scenario) ? DEMO_LIVE_MS : REFRESH_MS;
+}
+
+/** The banner under the header: one line for storage that resets, one for the demo traffic. */
+function noticeBox() {
+  let box = document.getElementById("server-notices");
+  if (!box) {
+    const line = (id) =>
+      el(
+        "p",
+        { id, class: "notice", role: "note", hidden: "" },
+        el("span", { class: "pulse", "aria-hidden": "true" }),
+        el("span", { class: "text" }),
+      );
+    box = el("div", { id: "server-notices" }, line("notice-storage"), line("notice-demo"));
+    document.querySelector("header").after(box);
   }
-  const lines = [];
-  if (health.storage_resets) {
-    lines.push(
-      "Demo data resets on restart: this server's database is wiped whenever the Space restarts, " +
-        "redeploys or wakes from sleep, so history starts empty after that.",
+  return box;
+}
+
+/** Show `text` on one banner line (hide it when empty); `live` adds the pulsing dot. */
+function setNotice(id, text, live = false) {
+  const line = document.getElementById(id);
+  line.hidden = !text;
+  line.classList.toggle("live", live);
+  line.querySelector(".text").textContent = text;
+}
+
+/** The demo traffic line: warm-up progress, a running scenario, or the steady trickle. */
+function demoNotice(demo) {
+  if (demo.scenario) {
+    return (
+      `Demo scenario running: ${demo.scenario.name}, request ${demo.scenario.sent} / ` +
+      `${demo.scenario.total}. This drift is staged on purpose to show the detectors at work.`
     );
   }
   if (demo.warmup) {
-    lines.push(
+    return (
       `Warming up: ${demo.warmup.stored} / ${demo.warmup.target} requests stored. Drift checks ` +
-        "start once the window is full; until then the charts stay empty.",
+      "start once the window is full; until then the charts stay empty."
     );
   }
-  if (demo.scenario) {
-    lines.push(
-      `Demo scenario running: ${demo.scenario.name}, request ${demo.scenario.sent} / ` +
-        `${demo.scenario.total}. This drift is staged on purpose to show the detectors at work.`,
+  return demo.enabled
+    ? "Live traffic here is a steady trickle of normal support questions sent by the server itself."
+    : "";
+}
+
+// /health's storage answer cannot change while the server runs, so it is fetched once.
+let storageResets = null;
+
+/** Update the banner, then check again: every 2 s while a count is moving, else every 30 s. */
+async function showServerNotices() {
+  let demo = null;
+  try {
+    if (storageResets === null) storageResets = (await api("/health")).storage_resets;
+    demo = await api("/demo/status");
+    noticeBox();
+    setNotice(
+      "notice-storage",
+      storageResets
+        ? "Demo data resets on restart: this server's database is wiped whenever the Space " +
+            "restarts, redeploys or wakes from sleep, so history starts empty after that."
+        : "",
     );
-  } else if (demo.enabled) {
-    lines.push(
-      "Live traffic here is a steady trickle of normal support questions sent by the server itself.",
-    );
+    setNotice("notice-demo", demoNotice(demo), Boolean(demo.warmup || demo.scenario));
+  } catch (_) {
+    // Server unreachable for now; try again at the slow pace.
   }
-  let box = document.getElementById("server-notices");
-  if (!box) {
-    box = el("div", { id: "server-notices" });
-    document.querySelector("header").after(box);
-  }
-  box.replaceChildren(...lines.map((line) => el("p", { class: "notice", role: "note" }, line)));
+  setTimeout(showServerNotices, noticeDelay(demo));
 }
 
 showServerNotices();
-setInterval(showServerNotices, REFRESH_MS);

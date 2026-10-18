@@ -153,7 +153,31 @@ main {
   background: var(--surface);
   color: var(--ink-2);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
   text-align: center;
+}
+.notice .pulse {
+  display: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+.notice.live .pulse {
+  display: inline-block;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice.live .pulse {
+    animation: none;
+  }
 }
 .updated {
   color: var(--muted);
