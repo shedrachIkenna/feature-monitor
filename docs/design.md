@@ -124,6 +124,8 @@ report it as a test of what only internal monitoring can see, not as a win over 
   also sweeps each detector's threshold over percentiles of its calibration scores
   (`experiment_sweep.csv`, plotted by `eval/plot_experiment.py` as
   `experiment_tradeoff.png`), so the detectors are compared at equal false-alarm rates.
+  `eval/02_results.ipynb` (`make results`) turns these into the results table, figures,
+  overhead and failure cases, from the cache alone (`eval/analysis.py` holds its computations).
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
   method it favours. Null and negative results are reported.
 
@@ -139,6 +141,10 @@ report it as a test of what only internal monitoring can see, not as a win over 
 
 ## Known gaps
 Things we know are missing, with when each must be fixed. Remove an item once it is fixed.
+- Gemma 2 2B features are extracted at bfloat16, and whether float32 would give other top-20
+  sets is untested: float32 Gemma does not fit in this Mac's memory even cut after layer 16.
+  Optional; a cloud GPU run of `eval/precision_check.py` would settle it, and only Gemma's
+  cache would need redoing if it disagrees.
 - Model versions are not pinned: GPT-2, the SAE and MiniLM are downloaded from the latest
   Hugging Face upload at build time, so a rebuild could get different weights. Optional; pin
   revisions for reproducible builds.

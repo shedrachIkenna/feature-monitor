@@ -4,6 +4,10 @@ Each mode starts its own uvicorn server on a temporary database, so the real dat
 untouched. Generation time and extraction time come from the stored rows; total time is
 the client's wall-clock time for the whole HTTP request.
 
+Results go to eval/results/latency_<profile>.json (FEATURE_MONITOR_PROFILE picks the model; the
+server runs the full model, as the live app does). eval/results/latency_m2.json is the earlier
+GPT-2 run, before extraction stopped after the SAE's layer.
+
 Run with: uv run python -m eval.latency
 """
 
@@ -25,10 +29,11 @@ import httpx
 
 from backend.app import EXTRACT_ENV, MAX_NEW_TOKENS, SEED
 from backend.storage import DB_PATH_ENV
+from monitor.model import active_profile
 
 ROOT = Path(__file__).resolve().parent.parent
 PROMPTS_PATH = ROOT / "eval" / "data" / "latency_prompts.json"
-RESULTS_PATH = ROOT / "eval" / "results" / "latency_m2.json"
+RESULTS_DIR = ROOT / "eval" / "results"
 PORT = 8765
 BASE_URL = f"http://127.0.0.1:{PORT}"
 STARTUP_TIMEOUT_S = 300
@@ -36,6 +41,11 @@ REQUEST_TIMEOUT_S = 120
 EXPECTED_HITS = {True: 20, False: 0}
 METRICS = ("gen_ms", "extract_ms", "total_ms")
 PACKAGES = ("torch", "transformer-lens", "sae-lens", "fastapi", "uvicorn", "httpx")
+
+
+def results_path() -> Path:
+    """Return eval/results/latency_<profile>.json for the active profile."""
+    return RESULTS_DIR / f"latency_{active_profile().name}.json"
 
 
 def load_prompts(path: Path = PROMPTS_PATH) -> list[str]:
@@ -190,6 +200,7 @@ def main() -> None:
     )
     results = {
         "created_at": datetime.now(UTC).isoformat(),
+        "profile": active_profile().name,
         "prompts_file": str(PROMPTS_PATH.relative_to(ROOT)),
         "max_new_tokens": MAX_NEW_TOKENS,
         "seed": SEED,
@@ -200,9 +211,10 @@ def main() -> None:
         "extract_on": on,
         "extract_off": off,
     }
-    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS_PATH.write_text(json.dumps(results, indent=2) + "\n")
-    print(f"Saved {RESULTS_PATH.relative_to(ROOT)}")
+    path = results_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(results, indent=2) + "\n")
+    print(f"Saved {path.relative_to(ROOT)}")
 
     if not passed:
         print(f"Checks failed: on={on['checks']} off={off['checks']}")

@@ -16,8 +16,7 @@ from urllib import request as urllib_request
 from monitor.extract import extract_features
 from monitor.model import active_profile
 
-# One cache per profile: the same feature ID means unrelated things in different SAEs.
-CACHE_PATH = Path(__file__).resolve().with_name(f"labels_cache_{active_profile().name}.json")
+CACHE_DIR = Path(__file__).resolve().parent
 REQUEST_TIMEOUT_SECONDS = 10
 RETRY_DELAY_SECONDS = 1.0
 MAX_RETRY_DELAY_SECONDS = 10.0
@@ -31,13 +30,21 @@ def _feature_url(feature_id: int | str) -> str:
     return f"https://www.neuronpedia.org/api/feature/{active_profile().neuronpedia_id}/{feature_id}"
 
 
+def cache_path() -> Path:
+    """The label cache of the profile in use now: one per profile, since the same feature ID
+    means unrelated things in different SAEs. Chosen on every call, so a process that switches
+    profiles never mixes their labels."""
+    return CACHE_DIR / f"labels_cache_{active_profile().name}.json"
+
+
 def _read_cache() -> dict[str, str]:
     """Load the feature-to-label cache from disk, if present."""
-    if not CACHE_PATH.exists():
+    path = cache_path()
+    if not path.exists():
         return {}
 
     try:
-        payload = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
 
@@ -57,13 +64,14 @@ def _write_cache(cache: dict[str, str]) -> None:
     The JSON goes to a temporary file in the same folder, which then replaces the cache in one
     step (os.replace).
     """
-    CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    path = cache_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
-        "w", encoding="utf-8", dir=CACHE_PATH.parent, suffix=".tmp", delete=False
+        "w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False
     ) as f:
         json.dump(cache, f, ensure_ascii=False, indent=2, sort_keys=True)
     try:
-        os.replace(f.name, CACHE_PATH)
+        os.replace(f.name, path)
     except OSError:
         os.unlink(f.name)
         raise
