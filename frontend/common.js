@@ -196,7 +196,7 @@ function baseOptions(xMin, xMax, yTitle) {
   };
 }
 
-// End labels sit at least this many px apart, each on a box of this height in the card's colour.
+// End labels sit at least this many px apart.
 const LABEL_GAP = 16;
 
 /** Move labels down where needed so each is at least `gap` px below the one above; keeps order. */
@@ -225,11 +225,14 @@ const endLabels = {
       const width = ctx.measureText(dataset.endLabel).width;
       labels.push({ text: dataset.endLabel, width, x: Math.min(last.x + 6, chartArea.right - width), y: last.y - 10 });
     });
-    // A box behind each label keeps lines (such as the dashed alarm level) from striking it through.
+    // A thin halo in the card's colour around each letter keeps lines (such as the dashed alarm
+    // level) from striking the text through, while lines passing under it stay visible.
+    ctx.strokeStyle = cssVar("--surface");
+    ctx.lineWidth = 4;
+    ctx.lineJoin = "round";
+    ctx.fillStyle = cssVar("--ink-2");
     for (const label of spreadLabels(labels, LABEL_GAP)) {
-      ctx.fillStyle = cssVar("--surface");
-      ctx.fillRect(label.x - 3, label.y - LABEL_GAP / 2, label.width + 6, LABEL_GAP);
-      ctx.fillStyle = cssVar("--ink-2");
+      ctx.strokeText(label.text, label.x, label.y);
       ctx.fillText(label.text, label.x, label.y);
     }
     ctx.restore();

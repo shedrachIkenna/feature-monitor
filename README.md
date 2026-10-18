@@ -69,13 +69,13 @@ The charts show time up to now, so for a run from earlier in the day set **Time 
 
 ### What it looks like
 
-The live overview on the Space, 18 October (desktop, then phone). It opens with a "Try it" box that shows a prompt's five strongest features with how often each appears in normal traffic (`/dashboard/normal-rates`, per 1,000 baseline prompts), then a live feed of monitored requests as they arrive with their three strongest features. The feed only shows recorded traffic, so visitors' own prompts never appear in it; the labels are Neuronpedia's and some are loose (a typo-ridden shipping question picks up "Apple products").
+The live overview on the Space, 18 October (desktop, then phone). It opens with a "Try it" box that shows a prompt's five strongest features with how often each appears in normal traffic (`/dashboard/normal-rates`, per 1,000 baseline prompts), then a live feed of monitored requests as they arrive with their three strongest features. The feed only shows recorded traffic, so visitors' own prompts never appear in it; the labels are Neuronpedia's and some are loose ("wheree could i order…" picks up the word "Whe").
 
 ![Top of the live overview: try box and live feed](docs/images/overview-top.png)
 
 <img src="docs/images/overview-phone.jpg" alt="Top of the live overview on a phone" width="295">
 
-Next comes a recorded replay of `medical_ramp` (seed 0): the SAE score with the shift and for the same normal prompts without it, from `frontend/recorded_example.json`, which `uv run python -m eval.recorded_example` rebuilds from the saved results. (In these screenshots the dashed line still crosses the "no shift" label; that was fixed the same day.)
+Next comes a recorded replay of `medical_ramp` (seed 0): the SAE score with the shift and for the same normal prompts without it, from `frontend/recorded_example.json`, which `uv run python -m eval.recorded_example` rebuilds from the saved results. (This screenshot predates the label fixes: the dashed line still crosses "no shift".)
 
 ![Recorded replay on the live overview](docs/images/overview-replay.png)
 
