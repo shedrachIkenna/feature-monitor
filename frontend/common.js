@@ -196,6 +196,19 @@ function baseOptions(xMin, xMax, yTitle) {
   };
 }
 
+// End labels sit at least this many px apart, each on a box of this height in the card's colour.
+const LABEL_GAP = 16;
+
+/** Move labels down where needed so each is at least `gap` px below the one above; keeps order. */
+function spreadLabels(labels, gap) {
+  const placed = [];
+  for (const label of [...labels].sort((a, b) => a.y - b.y)) {
+    const above = placed[placed.length - 1];
+    placed.push(above && label.y - above.y < gap ? { ...label, y: above.y + gap } : label);
+  }
+  return placed;
+}
+
 /** Chart.js plugin: write each dataset's `endLabel` beside its last point (direct labelling). */
 const endLabels = {
   id: "endLabels",
@@ -203,16 +216,22 @@ const endLabels = {
     const { ctx, chartArea } = chart;
     ctx.save();
     ctx.font = "12px system-ui, -apple-system, sans-serif";
-    ctx.fillStyle = cssVar("--ink-2");
     ctx.textBaseline = "middle";
+    const labels = [];
     chart.data.datasets.forEach((dataset, i) => {
       const points = chart.getDatasetMeta(i).data;
       if (!dataset.endLabel || !points.length) return;
       const last = points[points.length - 1];
       const width = ctx.measureText(dataset.endLabel).width;
-      const x = Math.min(last.x + 6, chartArea.right - width);
-      ctx.fillText(dataset.endLabel, x, last.y - 10);
+      labels.push({ text: dataset.endLabel, width, x: Math.min(last.x + 6, chartArea.right - width), y: last.y - 10 });
     });
+    // A box behind each label keeps lines (such as the dashed alarm level) from striking it through.
+    for (const label of spreadLabels(labels, LABEL_GAP)) {
+      ctx.fillStyle = cssVar("--surface");
+      ctx.fillRect(label.x - 3, label.y - LABEL_GAP / 2, label.width + 6, LABEL_GAP);
+      ctx.fillStyle = cssVar("--ink-2");
+      ctx.fillText(label.text, label.x, label.y);
+    }
     ctx.restore();
   },
 };
