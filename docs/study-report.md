@@ -7,7 +7,7 @@ the review fixes, and the supporting experiments.
 > **Out of date beyond Milestone 1.4 (checked 2026-10-17).** Everything after that (traffic
 > pools, baseline, drift test, calibration, the embedding detector, storage, API, drift job,
 > dashboard, first run, multi-seed evaluation, the stronger embedding baselines, the Docker
-> image, CI, the `/chat` queue cap, the record token, continuous deployment, the demo traffic, rate limit, retention and request logs, the overview's try box, live feed and recorded replay, the model profiles of Milestone 7.1, the offline experiment harness of 7.2 and its Gemma 2 2B results) is not
+> image, CI, the `/chat` queue cap, the record token, continuous deployment, the demo traffic, rate limit, retention and request logs, the overview's try box, live feed and recorded replay, the model profiles of Milestone 7.1, the offline experiment harness of 7.2 its Gemma 2 2B results and the matched false-alarm sweep) is not
 > covered here yet; see
 > [log.md](log.md). Sections 1.8 and 1.9 ("not chosen yet") and Part 6 are superseded by
 > [design.md](design.md). A full refresh is pending.

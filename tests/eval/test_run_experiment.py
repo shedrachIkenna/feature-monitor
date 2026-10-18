@@ -12,6 +12,9 @@ from eval.run_experiment import (
     extend_cache,
     load_embeddings,
     load_hits,
+    normal_score_ratio,
+    sweep_rows,
+    sweep_thresholds,
     tabulate,
     write_rows,
 )
@@ -101,6 +104,7 @@ def test_tabulate_reports_delay_share_misses_and_alert_rates() -> None:
     assert x["alerts"] == 2
     assert x["alerts_per_1000"] == 2.0
     assert x["missed"] is False and x["normal_alert_first"] is False
+    assert x["normal_score_ratio"] == 0.0  # the normal run's matching window scores 0
     y = next(r for r in run_rows if r["scenario"] == "y_ramp" and r["detector"] == "sae")
     assert y["missed"] is True and y["first_alert"] is None
     normal = next(r for r in run_rows if r["scenario"] == "normal_only")
@@ -164,3 +168,50 @@ def test_calibrate_writes_then_reproduces_then_refuses_a_mismatch(small_pools, t
     }
     with pytest.raises(RuntimeError, match="threshold"):
         calibrate_profile(changed, config)
+
+
+def test_normal_score_ratio_lines_up_the_same_normal_prompts() -> None:
+    window = 4
+    # Requests 1-10; shifted prompts at requests 3 and 9 (0-based rows 2 and 8).
+    rows = [{"is_shift": i in (2, 8)} for i in range(10)]
+    # normal_only window i covers normal prompts i .. i+3; give each a distinct score.
+    normal_scores = np.arange(10.0)
+    # Alert at request 10: its window (rows 6-9) holds normal prompts 5, 6, 7 (one shifted row 8,
+    # and row 2 came before). Same normal prompts plus the next one: normal_only window 5.
+    assert normal_score_ratio(rows, normal_scores, 10, 2.0, window) == 2.5
+    # Alert at request 4: nothing shifted before the window, so normal_only window 0.
+    assert normal_score_ratio(rows, normal_scores, 4, 2.0, window) == 0.0
+
+
+def test_sweep_uses_the_saved_threshold_at_the_configured_percentile() -> None:
+    calib = {"sae": np.arange(101.0), "embedding_mean": np.arange(101.0) / 10}
+    swept = sweep_thresholds(calib, {"sae": 99.3, "embedding_mean": 9.93}, 99.0)
+    assert swept["sae"][99.0] == 99.3 and swept["embedding_mean"][99.0] == 9.93
+    assert swept["sae"][90.0] == 90.0 and swept["embedding_mean"][100.0] == 10.0
+
+
+def test_sweep_rows_report_false_alarms_and_delays_per_threshold() -> None:
+    window, length = 100, 1000
+    rows = [{"prompt": "p", "is_shift": i >= 500} for i in range(length)]
+    runs = {("normal_only", 0): rows, ("x_ramp", 0): rows}
+    normal = np.zeros(length - window + 1)
+    normal[[10, 20]] = 0.7  # two separate rises above 0.5, none above 0.8
+    shifted = np.zeros(length - window + 1)
+    shifted[600:] = 0.9  # crosses both thresholds at request 700
+    scores = {
+        d: {("normal_only", 0): normal, ("x_ramp", 0): shifted} for d in run_experiment.DETECTORS
+    }
+    thresholds = {d: {50.0: 0.5, 99.0: 0.8} for d in run_experiment.DETECTORS}
+
+    out = sweep_rows("p1", runs, scores, thresholds, window)
+
+    assert len(out) == 4  # 2 detectors x 2 thresholds x 1 shift scenario
+    loose, strict = [r for r in out if r["detector"] == "sae"]
+    assert (loose["threshold"], loose["fa_alerts_per_1000"], loose["fa_run_rate"]) == (
+        0.5,
+        2.0,
+        1.0,
+    )
+    assert (strict["fa_alerts_per_1000"], strict["fa_run_rate"]) == (0.0, 0.0)
+    assert loose["median_delay"] == strict["median_delay"] == 200
+    assert loose["scenario"] == "x_ramp" and loose["detected"] == 1

@@ -118,7 +118,12 @@ report it as a test of what only internal monitoring can see, not as a win over 
   for both profiles); the live app keeps the full model, which it needs to generate replies.
   There, an alert is a window that rises
   above the threshold after one at or below it, and false alarms are alerts per 1,000 requests
-  on `normal_only`.
+  on `normal_only`. Each run's first alert also records `normal_score_ratio`: the same seed's
+  `normal_only` score for the window with the same normal prompts, over the threshold; at 0.95
+  or more the alert is "near the line" (normal traffic was about to alert anyway). The replay
+  also sweeps each detector's threshold over percentiles of its calibration scores
+  (`experiment_sweep.csv`, plotted by `eval/plot_experiment.py` as
+  `experiment_tradeoff.png`), so the detectors are compared at equal false-alarm rates.
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
   method it favours. Null and negative results are reported.
 
