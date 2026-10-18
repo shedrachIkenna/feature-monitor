@@ -106,6 +106,16 @@ report it as a test of what only internal monitoring can see, not as a win over 
 - Fair comparison: thresholds are swept over percentiles of each detector's calibration
   scores, so the detectors are compared at equal false-alarm rates (`eval/multiseed.py`).
 - Every scenario is replayed offline with 10 fixed seeds; we report the spread.
+- Experiments do not go through the API. `eval/run_experiment.py` encodes every prompt any run
+  can use once per profile and caches it (`data/experiments/<profile>/features.parquet`; MiniLM
+  embeddings shared in `data/experiments/embeddings.parquet`), builds or checks the profile's
+  baseline and threshold from that cache, and replays every scenario and seed against both live
+  detectors (SAE features and mean embedding distance). It writes one row per run to
+  `eval/results/experiment_runs.csv` and one per alert to `experiment_alerts.csv`. The cache
+  makes the comparison cheaper (the model runs once per prompt) and fairer (every detector and
+  seed sees the same representation of the same prompt). There, an alert is a window that rises
+  above the threshold after one at or below it, and false alarms are alerts per 1,000 requests
+  on `normal_only`.
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
   method it favours. Null and negative results are reported.
 
@@ -138,6 +148,7 @@ Things we know are missing, with when each must be fixed. Remove an item once it
 
 ## Open questions
 - Is one threshold crossing enough to alert, or should alerts need several in a row? At the
-  saved thresholds, 2 of 10 normal 2,000-request runs raise a false alarm for each detector.
+  saved thresholds, 2 of 10 normal 2,000-request runs raise a false alarm with SAE features and
+  4 of 10 with mean embedding distance (`eval/results/experiment_runs.csv`, GPT-2 Small).
 - Which steering direction and strengths, and at which layer?
 - Should operators treat style-only changes as real alerts?

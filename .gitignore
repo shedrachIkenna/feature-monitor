@@ -41,3 +41,4 @@ monitor/baselines/*_features.json
 monitor/baselines/*_embeddings.npy
 # Per-prompt features and clusters for the multi-seed replay (recreate with: uv run python -m eval.multiseed)
 data/multiseed/
+data/experiments/

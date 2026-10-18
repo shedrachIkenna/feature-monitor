@@ -155,6 +155,16 @@ for how deploys work and how to roll back.
 
 See [docs/design.md](docs/design.md) for the design.
 
+## Offline experiments
+
+Experiments replay the scenarios without the API, from a cache of each prompt's features:
+
+```sh
+uv run python -m eval.run_experiment extract calibrate replay   # add verify to check against the saved results
+```
+
+`extract` is the only slow step and resumes if stopped; the whole GPT-2 Small run (27,860 prompts) took 12 minutes on this Mac. Results go to `eval/results/experiment_runs.csv` and `experiment_alerts.csv`. Set `FEATURE_MONITOR_PROFILE` to run another model profile.
+
 ## Folder Layout
 
 - `backend/` - API and storage
