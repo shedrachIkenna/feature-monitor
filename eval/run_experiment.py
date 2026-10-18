@@ -84,7 +84,7 @@ from monitor.calibrate import (
 from monitor.config import DriftConfig, load_config
 from monitor.embed_mean import load_mean_baseline, mean_baseline_path
 from monitor.extract import FeatureHit
-from monitor.model import active_profile
+from monitor.model import active_profile, load_profile
 
 ROOT = Path(__file__).resolve().parent.parent
 EXPERIMENTS_DIR = ROOT / "data" / "experiments"
@@ -188,10 +188,11 @@ def extend_cache(
 
 
 def encode_features(prompts: list[str]) -> dict[str, list]:
-    """Top-k SAE features of each prompt with the active profile's model."""
-    from monitor.extract import extract_features
+    """Top-k SAE features of each prompt, from the active profile's model cut after the SAE layer."""
+    from monitor.extract import top_features
 
-    hits = [extract_features(p, K) for p in prompts]
+    model, sae = load_profile(active_profile(), truncate=True)
+    hits = [top_features(model, sae, p, K) for p in prompts]
     return {
         "feature_ids": [[h.feature_id for h in row] for row in hits],
         "activations": [[h.activation for h in row] for row in hits],

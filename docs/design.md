@@ -113,7 +113,10 @@ report it as a test of what only internal monitoring can see, not as a win over 
   detectors (SAE features and mean embedding distance). It writes one row per run to
   `eval/results/experiment_runs.csv` and one per alert to `experiment_alerts.csv`. The cache
   makes the comparison cheaper (the model runs once per prompt) and fairer (every detector and
-  seed sees the same representation of the same prompt). There, an alert is a window that rises
+  seed sees the same representation of the same prompt). Extraction there loads the model cut
+  after the SAE's layer, which gives bit-identical features with less memory and time (checked
+  for both profiles); the live app keeps the full model, which it needs to generate replies.
+  There, an alert is a window that rises
   above the threshold after one at or below it, and false alarms are alerts per 1,000 requests
   on `normal_only`.
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
@@ -126,8 +129,8 @@ report it as a test of what only internal monitoring can see, not as a win over 
 - Embedding model responses.
 - Load testing at production scale.
 - Not yet: sudden switches (all scenarios are ramps), and results for models other than
-  GPT-2 Small. The Gemma 2 2B profile can be loaded (Milestone 7.1) but has no baseline,
-  threshold or evaluation yet.
+  GPT-2 Small beyond the offline replay: Gemma 2 2B has a baseline, threshold and offline
+  results (Milestone 7.2) but has not served live traffic.
 
 ## Known gaps
 Things we know are missing, with when each must be fixed. Remove an item once it is fixed.
