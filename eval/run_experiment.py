@@ -13,9 +13,12 @@ Steps, run in the order given (FEATURE_MONITOR_PROFILE picks the model):
   look up each prompt's cached representation, score every window with both detectors (SAE
   features, and mean embedding distance, the live embedding detector) and write this profile's rows
   of eval/results/experiment_runs.csv (one row per run) and experiment_alerts.csv (one per alert).
+  It also sweeps each detector's threshold over percentiles of its calibration scores (the 1,000
+  random calibration windows) and writes experiment_sweep.csv, so detectors can be compared at
+  equal false-alarm rates.
 - verify: replay, then compare every window's score with eval/results/multiseed.json (SAE) and
   embed_baselines.json (mean distance), which were made before this harness; the first alert of
-  every run must be the same.
+  every run must be the same, and the calibration scores must give the same sweep thresholds.
 
 Why a cache: a prompt's features do not depend on which scenario, seed or detector uses it, so
 the model runs once per prompt, and every replay afterwards only counts. It is also fairer: every
@@ -24,7 +27,11 @@ timing, server load or the scheduler, so differences between results come from t
 
 An alert is a window scoring above the threshold right after one at or below it (the first full
 window counts if it is above), so a shift that stays above the line is one alert, not hundreds.
-Delay and shift share are defined as in eval/multiseed.py.
+Delay and shift share are defined as in eval/multiseed.py. normal_score_ratio says how close
+normal traffic alone was when a shift run first alerted: the same seed's normal_only score for
+the window holding the same normal prompts (shifted ones left out, the next normal prompts in
+their place), divided by the threshold. At or above NEAR_LINE the first alert is counted as
+"near the line": normal traffic was about to alert anyway.
 
 Run with: uv run python -m eval.run_experiment extract calibrate replay
 """
@@ -44,10 +51,11 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from eval.embed_baselines import rolling_mean_distance
+from eval.embed_baselines import calibration_windows, rolling_mean_distance
 from eval.multiseed import (
     NORMAL,
     SEEDS,
+    SWEEP_PERCENTILES,
     delay_summary,
     detection,
     first_alert,
@@ -57,6 +65,7 @@ from eval.multiseed import (
     rolling_scores,
     sequences,
     shift_share,
+    sweep,
 )
 from monitor.baseline import (
     N_PROMPTS,
@@ -82,7 +91,7 @@ from monitor.calibrate import (
     threshold_path,
 )
 from monitor.config import DriftConfig, load_config
-from monitor.embed_mean import load_mean_baseline, mean_baseline_path
+from monitor.embed_mean import load_mean_baseline, mean_baseline_path, mean_distance
 from monitor.extract import FeatureHit
 from monitor.model import active_profile, load_profile
 
@@ -92,6 +101,8 @@ EMBEDDINGS_PATH = EXPERIMENTS_DIR / "embeddings.parquet"
 RESULTS_DIR = ROOT / "eval" / "results"
 RUNS_PATH = RESULTS_DIR / "experiment_runs.csv"
 ALERTS_PATH = RESULTS_DIR / "experiment_alerts.csv"
+SWEEP_PATH = RESULTS_DIR / "experiment_sweep.csv"
+NORMAL_JSD_PATH = RESULTS_DIR / "normal_jsd.json"
 MULTISEED_PATH = RESULTS_DIR / "multiseed.json"
 EMBED_BASELINES_PATH = RESULTS_DIR / "embed_baselines.json"
 CHUNK = 500
@@ -101,6 +112,9 @@ DETECTORS = (SAE, EMBEDDING)
 # Saved scores were rounded (6 decimals; 8 significant digits), and re-embedding in other batches
 # moves the last float32 bits, so only these small gaps are tolerated.
 VERIFY_TOLERANCE = {SAE: 1e-6, EMBEDDING: 1e-6}
+# Fixed before the first run: a first alert with normal traffic at 95% of the threshold or more
+# is counted as near the line.
+NEAR_LINE = 0.95
 
 FEATURE_SCHEMA = pa.schema(
     [
@@ -125,6 +139,22 @@ RUN_FIELDS = [
     "alerts",
     "alerts_per_1000",
     "normal_alert_first",
+    "normal_score_ratio",
+]
+SWEEP_FIELDS = [
+    "profile",
+    "detector",
+    "percentile",
+    "threshold",
+    "fa_alerts_per_1000",
+    "fa_run_rate",
+    "fa_window_rate",
+    "scenario",
+    "detected",
+    "runs",
+    "median_delay",
+    "min_delay",
+    "max_delay",
 ]
 ALERT_FIELDS = [
     "profile",
@@ -270,6 +300,104 @@ def calibrate_profile(hits: dict[str, list[FeatureHit]], config: DriftConfig) ->
     }
 
 
+def calibration_scores(
+    hits: dict[str, list[FeatureHit]],
+    embeddings: dict[str, np.ndarray],
+    counts: dict[int, int],
+    mean: np.ndarray,
+    config: DriftConfig,
+) -> dict[str, np.ndarray]:
+    """Each detector's scores on the calibration windows that set its saved threshold."""
+    metadata, _ = load_baseline(baseline_path())
+    prompts = pool_prompts(metadata)
+    sae = calibrate(
+        [ids(hits[p]) for p in prompts[CALIBRATION_POOL]],
+        [ids(hits[p]) for p in prompts[CHECK_POOL]],
+        counts,
+        config.window_size,
+        config.threshold_percentile,
+        config.calibration_windows,
+        config.seed,
+    )["calibration_scores"]
+    calib = np.array([embeddings[p] for p in prompts[CALIBRATION_POOL]])
+    windows = calibration_windows(
+        len(calib), config.window_size, config.calibration_windows, config.seed
+    )
+    return {
+        SAE: np.array(sae),
+        EMBEDDING: np.array([mean_distance(calib[idx], mean) for idx in windows]),
+    }
+
+
+def sweep_thresholds(
+    calib: dict[str, np.ndarray], saved: dict[str, float], percentile: float
+) -> dict[str, dict[float, float]]:
+    """Thresholds at SWEEP_PERCENTILES of each detector's calibration scores.
+
+    At the configured percentile the saved threshold is used, so the sweep includes the live
+    setting exactly.
+    """
+    return {
+        detector: {
+            p: saved[detector] if p == percentile else float(np.percentile(scores, p))
+            for p in SWEEP_PERCENTILES
+        }
+        for detector, scores in calib.items()
+    }
+
+
+def sweep_rows(
+    profile: str,
+    runs: Runs,
+    scores: Scores,
+    thresholds: dict[str, dict[float, float]],
+    window_size: int,
+) -> list[dict]:
+    """One row per detector, threshold and shift scenario: false alarms, detections, delays."""
+    rows = []
+    for detector in DETECTORS:
+        normal = [s for (name, _), s in scores[detector].items() if name == NORMAL]
+        requests = sum(len(r) for (name, _), r in runs.items() if name == NORMAL)
+        for point in sweep(scores[detector], runs, thresholds[detector], window_size):
+            alerts = sum(alert_indices(s, point["threshold"]).size for s in normal)
+            shared = {
+                "profile": profile,
+                "detector": detector,
+                "percentile": point["percentile"],
+                "threshold": point["threshold"],
+                "fa_alerts_per_1000": alerts / requests * 1000,
+                "fa_run_rate": point["run_rate"],
+                "fa_window_rate": point["window_rate"],
+            }
+            for name in sorted(k for k in point if k.endswith("_ramp")):
+                summary = point[name]
+                rows.append(
+                    shared
+                    | {
+                        "scenario": name,
+                        "detected": summary["detected"],
+                        "runs": summary["runs"],
+                        "median_delay": summary["median"],
+                        "min_delay": summary["min"],
+                        "max_delay": summary["max"],
+                    }
+                )
+    return rows
+
+
+def normal_score_ratio(
+    rows: Sequence[dict], normal_scores: np.ndarray, first: int, threshold: float, window_size: int
+) -> float:
+    """normal_only score of the window with the same normal prompts as the alert's, / threshold.
+
+    The shift run's window ending at request `first` holds its normal prompts with the same order
+    as normal_only (same seed); leaving out the shifted prompts that came before the window lines
+    the two runs up, and the window's own shifted prompts are replaced by the next normal ones.
+    """
+    before = sum(r["is_shift"] for r in rows[: first - window_size])
+    return float(normal_scores[first - window_size - before] / threshold)
+
+
 def detector_thresholds(window_size: int) -> tuple[dict[str, float], dict[int, int], np.ndarray]:
     """Saved thresholds of both detectors, the SAE baseline counts and the baseline mean."""
     metadata, baseline = load_baseline(baseline_path())
@@ -342,6 +470,15 @@ def tabulate(
                     "shift_share": found["shift_share"],
                     "missed": found["first_alert"] is None,
                     "normal_alert_first": found["normal_alert_first"],
+                    "normal_score_ratio": None
+                    if found["first_alert"] is None
+                    else normal_score_ratio(
+                        rows,
+                        scores[detector][(NORMAL, seed)],
+                        found["first_alert"],
+                        threshold,
+                        window_size,
+                    ),
                 }
             run_rows.append(row)
             alert_rows += [
@@ -386,19 +523,32 @@ def summarise(run_rows: list[dict]) -> list[str]:
             " runs with an alert"
         )
         for name in sorted({r["scenario"] for r in mine} - {NORMAL}):
-            delays = [r["delay"] for r in mine if r["scenario"] == name]
-            s = delay_summary(delays)
+            runs = [r for r in mine if r["scenario"] == name]
+            s = delay_summary([r["delay"] for r in runs])
+            near = sum(
+                r["normal_score_ratio"] is not None and r["normal_score_ratio"] >= NEAR_LINE
+                for r in runs
+            )
             lines.append(
                 f"  {name:<20} detected {s['detected']}/{s['runs']}  median delay {s['median']}"
-                f"  range {s['min']}-{s['max']}"
+                f"  range {s['min']}-{s['max']}  near the line {near}"
             )
     return lines
 
 
-def verify(scores: Scores, thresholds: dict[str, float], window_size: int) -> dict:
-    """Compare replayed scores with the saved multiseed and embed_baselines results."""
+def verify(
+    scores: Scores,
+    thresholds: dict[str, float],
+    swept: dict[str, dict[float, float]],
+    window_size: int,
+) -> dict:
+    """Compare replayed scores and sweep thresholds with the saved results made before."""
     multiseed = json.loads(MULTISEED_PATH.read_text(encoding="utf-8"))
     embed = json.loads(EMBED_BASELINES_PATH.read_text(encoding="utf-8"))
+    saved_sweeps = {
+        SAE: multiseed["detectors"]["sae"]["sweep"],
+        EMBEDDING: embed["detectors"]["mean"]["sweep"],
+    }
     saved = {
         SAE: (multiseed["scores"]["sae"], multiseed["detectors"]["sae"]["saved_threshold"]),
         EMBEDDING: (embed["scores"]["mean"], embed["detectors"]["mean"]["saved_threshold"]),
@@ -419,6 +569,10 @@ def verify(scores: Scores, thresholds: dict[str, float], window_size: int) -> di
             "same_first_alert": same_first,
             "saved_threshold": old_threshold,
             "threshold": thresholds[detector],
+            "same_sweep_thresholds": all(
+                np.isclose(swept[detector][point["percentile"]], point["threshold"], rtol=1e-6)
+                for point in saved_sweeps[detector]
+            ),
         }
     return report
 
@@ -446,16 +600,24 @@ def main(steps: list[str]) -> None:
     thresholds, counts, mean = detector_thresholds(config.window_size)
     embeddings = load_embeddings(EMBEDDINGS_PATH)
     scores = replay_scores(runs, hits, embeddings, counts, mean, config.window_size)
+    calib = calibration_scores(hits, embeddings, counts, mean, config)
+    swept = sweep_thresholds(calib, thresholds, config.threshold_percentile)
     if "verify" in steps:
-        report = verify(scores, thresholds, config.window_size)
+        report = verify(scores, thresholds, swept, config.window_size)
         print(f"Replay vs saved results: {report}")
         for detector, r in report.items():
-            if r["same_first_alert"] != r["runs"] or r["max_abs_diff"] > VERIFY_TOLERANCE[detector]:
+            if (
+                r["same_first_alert"] != r["runs"]
+                or r["max_abs_diff"] > VERIFY_TOLERANCE[detector]
+                or not r["same_sweep_thresholds"]
+            ):
                 raise RuntimeError(f"{detector}: replay does not reproduce the saved results")
     if "replay" in steps:
         run_rows, alert_rows = tabulate(profile.name, runs, scores, thresholds, config.window_size)
         write_rows(RUNS_PATH, RUN_FIELDS, profile.name, run_rows)
         write_rows(ALERTS_PATH, ALERT_FIELDS, profile.name, alert_rows)
+        swept_rows = sweep_rows(profile.name, runs, scores, swept, config.window_size)
+        write_rows(SWEEP_PATH, SWEEP_FIELDS, profile.name, swept_rows)
         print(
             f"Saved {len(run_rows)} runs to {RUNS_PATH} and {len(alert_rows)} alerts to {ALERTS_PATH}"
         )
