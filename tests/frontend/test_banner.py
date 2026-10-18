@@ -1,39 +1,17 @@
 """The banner's refresh rule and text, run in Node against the real common.js."""
 
 import json
-import shutil
-import subprocess
 
 import pytest
 
-from backend.app import FRONTEND_DIR
+from tests.frontend.node_js import evaluate as run_js
+from tests.frontend.node_js import needs_node
 
-pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="needs Node.js")
-
-# Loads common.js with just enough browser stand-ins for its top level to run (the first
-# banner update fails quietly without a server), then evaluates `expression` in its scope.
-RUNNER = """
-const vm = require("vm");
-const fs = require("fs");
-const context = {
-  fetch: () => Promise.reject(new Error("no server")),
-  setTimeout: () => 0,
-  document: { getElementById: () => null },
-};
-vm.createContext(context);
-vm.runInContext(fs.readFileSync(process.argv[1], "utf8"), context);
-console.log(JSON.stringify(vm.runInContext(process.argv[2], context)));
-"""
+pytestmark = needs_node
 
 
 def evaluate(expression: str):
-    result = subprocess.run(
-        ["node", "-e", RUNNER, str(FRONTEND_DIR / "common.js"), expression],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return json.loads(result.stdout)
+    return run_js(expression, "common.js")
 
 
 WARMING = {"enabled": True, "warmup": {"stored": 212, "target": 500}, "scenario": None}

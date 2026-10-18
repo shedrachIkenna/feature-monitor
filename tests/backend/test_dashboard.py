@@ -193,8 +193,25 @@ def test_labels_rejects_bad_or_too_many_ids(client, ids) -> None:
     assert client.get("/dashboard/labels", params={"ids": ids}).status_code == 422
 
 
+def test_normal_rates_are_per_thousand_baseline_prompts(client) -> None:
+    rates = client.get("/dashboard/normal-rates", params={"ids": f"{NORMAL[0]},11,11"}).json()
+    # Every baseline prompt had the NORMAL features and none had the shifted ones.
+    assert rates == {str(NORMAL[0]): 1000.0, "11": 0.0}
+
+
+@pytest.mark.parametrize("ids", ["", "a", ",".join(str(i) for i in range(21))])
+def test_normal_rates_reject_bad_or_too_many_ids(client, ids) -> None:
+    assert client.get("/dashboard/normal-rates", params={"ids": ids}).status_code == 422
+
+
 @pytest.mark.parametrize(
-    "path", ["/dashboard/drifting", "/dashboard/feature/11", "/dashboard/labels?ids=11"]
+    "path",
+    [
+        "/dashboard/drifting",
+        "/dashboard/feature/11",
+        "/dashboard/labels?ids=11",
+        "/dashboard/normal-rates?ids=11",
+    ],
 )
 def test_sae_endpoints_need_the_drift_job(client_without_job, path) -> None:
     assert client_without_job.get(path).status_code == 503

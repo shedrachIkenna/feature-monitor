@@ -20,7 +20,10 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 4. Every 60 seconds, a drift job scores the latest 500 requests against a fixed baseline
    and stores the score; a score above the threshold raises an alert (`monitor/job.py`).
 5. The same job scores the same window from prompt sentence embeddings, as the comparison baseline.
-6. A dashboard served at `/` shows scores, alerts and drifting features; its Playground page
+6. A dashboard served at `/` opens with a "Try it" prompt box (top 5 features, each with its
+   rate in the baseline), a live feed of monitored requests with their top 3 features, and a
+   recorded replay of `medical_ramp` with and without the shift (`eval/recorded_example.py`),
+   then shows scores, alerts and drifting features; its Playground page
    runs single prompts without storing them (`POST /chat` with `record: false`). At most 4
    `/chat` requests run or wait at once; the rest get 429 (`FEATURE_MONITOR_MAX_CHAT_QUEUE`).
    Recorded prompts need the `X-Record-Token` header when `FEATURE_MONITOR_RECORD_TOKEN` is

@@ -17,6 +17,41 @@
       <label class="controls">Time range <select id="range"></select></label>
     </header>
     <main>
+      <section class="card intro" aria-labelledby="try-title">
+        <h2 id="try-title">What does GPT-2 notice in your prompt?</h2>
+        <p class="sub">
+          This site watches the internal <span data-term="feature">features</span> of a small
+          language model on every request, and raises an alert when traffic stops looking normal.
+          Try a prompt: it is answered but never stored, so it does not count as traffic.
+        </p>
+        <form id="try-form" class="ask">
+          <label for="try-prompt" class="visually-hidden">Prompt</label>
+          <textarea id="try-prompt" rows="2" maxlength="2000" required placeholder="My parcel never arrived, can I get a refund?"></textarea>
+          <button type="submit" id="try-submit">Try it</button>
+        </form>
+        <div id="try-status"></div>
+        <ol class="try-results" id="try-results"></ol>
+        <p class="sub" id="try-more" hidden>
+          <a href="playground.html">See all 20 features and the model's reply in the Playground</a>
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="feed-title">
+        <h2 id="feed-title"><span class="live-dot" aria-hidden="true"></span>Live: what the model notices in each request</h2>
+        <p class="sub">
+          The latest monitored requests as they arrive, each with its three strongest features.
+          They are the server's own demo traffic or a staged scenario, never visitors' prompts.
+        </p>
+        <ol class="feed" id="feed"></ol>
+        <div id="feed-status"></div>
+      </section>
+
+      <section class="card" aria-labelledby="recorded-title">
+        <h2 id="recorded-title">What an alert looks like: a recorded replay</h2>
+        <p class="sub" id="recorded-caption"></p>
+        <div class="chart"><canvas id="recorded" aria-label="Recorded replay: SAE score with and without a medical shift"></canvas></div>
+      </section>
+
       <aside class="card howto" aria-labelledby="howto-title">
         <h2 id="howto-title">How to read this</h2>
         <ol>
@@ -62,6 +97,16 @@
       </section>
       <p class="updated" id="updated"></p>
     </main>
+    <footer class="sources">
+      Prompts shown on this site come from
+      <a href="https://huggingface.co/datasets/bitext/Bitext-customer-support-llm-chatbot-training-dataset">Bitext customer support</a>
+      (CDLA-Sharing-1.0, Bitext Innovations),
+      <a href="https://github.com/abachaa/MedQuAD">MedQuAD</a>
+      (CC BY 4.0, Ben Abacha &amp; Demner-Fushman, 2019) and
+      <a href="https://huggingface.co/datasets/deepset/prompt-injections">deepset prompt-injections</a>
+      (Apache-2.0). Feature labels from <a href="https://www.neuronpedia.org/">Neuronpedia</a>.
+      <a href="https://github.com/shedrachIkenna/feature-monitor">Source code</a>.
+    </footer>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"
       integrity="sha512-WoViKhKD4qI2WruSZqv9+kvM4WfFhUMQCLN4QlDTt5aU56fLQy2gYoxWIqlEnXqJy/+Ac5q/hk1oWfqnMDhwMA=="
@@ -70,5 +115,6 @@
     ></script>
     <script src="common.js"></script>
     <script src="overview.js"></script>
+    <script src="live.js"></script>
   </body>
 </html>
