@@ -371,6 +371,20 @@ def create_app(
             ],
         )
 
+    @app.get("/dashboard/normal-rates")
+    def dashboard_normal_rates(
+        request: Request, ids: str = Query(pattern=LABEL_IDS_PATTERN)
+    ) -> dict:
+        """Per feature: in how many of every 1,000 baseline (normal) prompts it was in the top 20."""
+        _, detector = sae_detector(request)
+        feature_ids = list(dict.fromkeys(int(i) for i in ids.split(",")))
+        if len(feature_ids) > MAX_LABEL_IDS:
+            raise HTTPException(422, f"at most {MAX_LABEL_IDS} feature ids")
+        return {
+            str(f): detector.baseline_counts.get(f, 0) / detector.baseline_n * 1000
+            for f in feature_ids
+        }
+
     @app.get("/demo/status")
     def demo_status(request: Request) -> dict:
         traffic: demo.DemoTraffic | None = request.app.state.demo
