@@ -28,6 +28,8 @@ uv run pytest
 
 The first test run downloads GPT-2 Small and its SAE. `make test-fast` skips the tests that need them.
 
+**Model profiles.** The model, its SAE, the layer read and the Neuronpedia label source come from one profile in `monitor/profiles.yaml`, chosen with `FEATURE_MONITOR_PROFILE`: `gpt2_small` (the default, and what the Space runs) or `gemma2_2b` (Gemma 2 2B with the Gemma Scope layer-16, 16k-feature SAE). Baselines, thresholds, feature caches and labels are kept per profile. Gemma is gated on Hugging Face: accept its licence and log in (`uv run hf auth login`) before loading it. The Gemma profile has no baseline or threshold yet, so the app cannot run drift checks with it.
+
 Run the API (loads the model once at startup):
 
 ```sh

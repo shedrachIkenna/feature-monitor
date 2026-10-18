@@ -8,9 +8,14 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Every test runs once per model profile (monitor/profiles.yaml).
+    strategy:
+      matrix:
+        profile: [gpt2_small, gemma2_2b]
     env:
       # Fail loudly if a test not marked requires_model tries to download from Hugging Face.
       HF_HUB_OFFLINE: "1"
+      FEATURE_MONITOR_PROFILE: ${{ matrix.profile }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -20,7 +25,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      # Tests that load GPT-2 and the SAE download them first; skip them here.
+      # Tests that load the model and SAE download them first; skip them here.
       - run: uv run pytest -m "not requires_model"
 
   docker:

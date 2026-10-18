@@ -1,7 +1,6 @@
 // Features page: the latest window's top drifting SAE features, and one feature's detail.
 
 const TABLE_LIMIT = 15;
-const NEURONPEDIA = "https://www.neuronpedia.org/gpt2-small/8-res-jb";
 let rateChart = null;
 let selectedId = null;
 // Normal rate per feature from the latest table, for the detail chart's dashed line.
@@ -181,10 +180,11 @@ async function loadDetail(range) {
   detail.hidden = false;
   document.getElementById("detail-title").textContent =
     `How often feature #${feature.feature_id} appears over time`;
+  const { neuronpedia_id: source } = await serverHealth();
   const sub = document.getElementById("detail-sub");
   sub.replaceChildren(
     `"${feature.label}". Solid line: rate per 1,000 requests in each time step; dashed line: normal rate. Steps with few requests are noisy. `,
-    el("a", { href: `${NEURONPEDIA}/${feature.feature_id}`, target: "_blank", rel: "noopener" }, "Open on Neuronpedia")
+    el("a", { href: `https://www.neuronpedia.org/${source}/${feature.feature_id}`, target: "_blank", rel: "noopener" }, "Open on Neuronpedia")
   );
   drawRate(feature, feature.bucket_minutes * 60000);
   drawPrompts(feature);

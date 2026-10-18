@@ -30,7 +30,7 @@ torch/
 *.db-wal
 
 # Generated local caches
-monitor/labels_cache.json
+monitor/labels_cache_*.json
 # Generated traffic pools (recreate with: uv run python -m traffic.prepare_data)
 traffic/data/
 traffic/runs/

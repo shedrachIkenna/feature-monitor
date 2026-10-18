@@ -1,6 +1,6 @@
 """First end-to-end run: send each scenario through the real app and record when each detector alerts.
 
-For each scenario, the app (GPT-2, SAE extraction and the scheduled drift job) starts in this
+For each scenario, the app (the model, SAE extraction and the scheduled drift job) starts in this
 process on a fresh database, the scenario's requests are sent one at a time, and the run ends once
 the job has checked the window holding the last request. A request number is the 1-based position
 in the scenario. Checks run every check_interval_seconds of wall-clock time, so the first-alert
@@ -20,7 +20,7 @@ import httpx
 import uvicorn
 
 from backend import storage
-from backend.app import GPT2Engine, create_app
+from backend.app import ModelEngine, create_app
 from monitor.config import load_config
 from monitor.job import DriftJob, load_drift_job
 from traffic.generate import build_sequence, load_pool, load_scenario, send
@@ -97,7 +97,7 @@ def run_scenario(name: str) -> dict:
 
     job = load_drift_job()
     server = uvicorn.Server(
-        uvicorn.Config(create_app(GPT2Engine, lambda: job), port=PORT, log_level="warning")
+        uvicorn.Config(create_app(ModelEngine, lambda: job), port=PORT, log_level="warning")
     )
     thread = threading.Thread(target=server.run)
     thread.start()

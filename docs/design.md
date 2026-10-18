@@ -15,6 +15,19 @@ sentence embeddings of the prompts. It is an experiment; neither method is assum
 ## How it works
 1. For each request, read GPT-2 Small's activations at layer 8 (`blocks.8.hook_resid_pre`).
 2. Encode them with a sparse autoencoder (SAE, `gpt2-small-res-jb`, 24,576 features).
+
+   Steps 1 and 2 follow the active model profile (`monitor/profiles.yaml`, chosen with
+   `FEATURE_MONITOR_PROFILE`; only `monitor/model.py` reads it). `gpt2_small` above is the
+   default and runs on the Space. `gemma2_2b` reads Gemma 2 2B's layer 16
+   (`blocks.16.hook_resid_post`) with the Gemma Scope SAE `gemma-scope-2b-pt-res-canonical`,
+   `layer_16/width_16k/canonical` (16,384 features), loaded at bfloat16 without weight
+   processing, because Gemma Scope was trained on the raw residual stream. Layer 16's output
+   comes after 17 of 26 blocks (65%), the closest to GPT-2's input to block 8 (8 of 12, 67%),
+   so both profiles read at about the same relative depth. SAE baselines, thresholds, feature
+   caches and label caches are kept per profile (`<model>_<layer>` file names,
+   `labels_cache_<profile>.json`). The embedding detector's files are shared on purpose: it
+   reads prompt text only, and both profiles use the same 3,000-prompt sample, so both SAE
+   detectors are compared against the identical baseline detector.
 3. Store the request's 20 most active features (`backend/storage.py`, schema in
    [schema.md](schema.md)).
 4. Every 60 seconds, a drift job scores the latest 500 requests against a fixed baseline
@@ -102,8 +115,9 @@ report it as a test of what only internal monitoring can see, not as a win over 
 - Automatic actions such as rollback or blocking; the system only alerts.
 - Embedding model responses.
 - Load testing at production scale.
-- Not yet: sudden switches (all scenarios are ramps), and models other than GPT-2 Small
-  (Gemma 2 2B in Milestone 7).
+- Not yet: sudden switches (all scenarios are ramps), and results for models other than
+  GPT-2 Small. The Gemma 2 2B profile can be loaded (Milestone 7.1) but has no baseline,
+  threshold or evaluation yet.
 
 ## Known gaps
 Things we know are missing, with when each must be fixed. Remove an item once it is fixed.

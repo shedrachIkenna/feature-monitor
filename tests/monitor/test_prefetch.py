@@ -1,9 +1,12 @@
 import pytest
 
 from monitor import prefetch
+from monitor.baseline import baseline_path
 
 
 def test_baseline_feature_ids_are_sorted_distinct_ints() -> None:
+    if not baseline_path().exists():
+        pytest.skip(f"no saved baseline for this profile yet: {baseline_path().name}")
     ids = prefetch.baseline_feature_ids()
 
     assert ids

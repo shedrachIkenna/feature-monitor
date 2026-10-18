@@ -1,4 +1,4 @@
-"""Attach human-readable labels to Neuronpedia feature IDs."""
+"""Attach human-readable labels to Neuronpedia feature IDs of the active profile's SAE."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ from urllib import error as urllib_error
 from urllib import request as urllib_request
 
 from monitor.extract import extract_features
+from monitor.model import active_profile
 
-MODEL_ID = "gpt2-small"
-SOURCE_ID = "8-res-jb"
-CACHE_PATH = Path(__file__).resolve().with_name("labels_cache.json")
+# One cache per profile: the same feature ID means unrelated things in different SAEs.
+CACHE_PATH = Path(__file__).resolve().with_name(f"labels_cache_{active_profile().name}.json")
 REQUEST_TIMEOUT_SECONDS = 10
 RETRY_DELAY_SECONDS = 1.0
 MAX_RETRY_DELAY_SECONDS = 10.0
@@ -28,7 +28,7 @@ _CACHE_LOCK = threading.Lock()
 
 def _feature_url(feature_id: int | str) -> str:
     """Return the single-feature Neuronpedia endpoint for a feature ID."""
-    return f"https://www.neuronpedia.org/api/feature/{MODEL_ID}/{SOURCE_ID}/{feature_id}"
+    return f"https://www.neuronpedia.org/api/feature/{active_profile().neuronpedia_id}/{feature_id}"
 
 
 def _read_cache() -> dict[str, str]:

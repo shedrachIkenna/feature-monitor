@@ -105,7 +105,7 @@ async function tryPrompt(prompt) {
   const status = document.getElementById("try-status");
   const list = document.getElementById("try-results");
   button.disabled = true;
-  setStatus(status, "Running GPT-2 on your prompt…");
+  setStatus(status, "Running the model on your prompt…");
   try {
     const result = await api("/chat", {
       method: "POST",

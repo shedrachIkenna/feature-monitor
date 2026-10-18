@@ -15,7 +15,7 @@ from pathlib import Path
 
 from monitor.extract import FeatureHit, extract_features
 from monitor.labels import get_label
-from monitor.model import MODEL_NAME, SAE_ID, SAE_RELEASE
+from monitor.model import active_profile
 
 SEED = 0
 N_PROMPTS = 3000
@@ -23,7 +23,6 @@ K = 20
 POOL = "normal_train"
 POOL_DIR = Path(__file__).resolve().parent.parent / "traffic" / "data"
 BASELINES_DIR = Path(__file__).resolve().with_name("baselines")
-LAYER = int(SAE_ID.split(".")[1])  # "blocks.8.hook_resid_pre" -> 8
 
 
 def read_pool(path: Path) -> list[str]:
@@ -79,20 +78,22 @@ def load_baseline(path: Path) -> tuple[dict, dict]:
     return payload["metadata"], baseline
 
 
-def baseline_path(model: str = MODEL_NAME, layer: int = LAYER) -> Path:
-    """Return monitor/baselines/<model>_<layer>.json."""
-    return BASELINES_DIR / f"{model}_{layer}.json"
+def baseline_path() -> Path:
+    """Return the active profile's baseline, monitor/baselines/<model>_<layer>.json."""
+    return BASELINES_DIR / f"{active_profile().file_stem}.json"
 
 
 def main() -> None:
     """Build, save and reload the baseline, then print its 20 most common features."""
     prompts = sample_prompts(read_pool(POOL_DIR / f"{POOL}.jsonl"), N_PROMPTS)
     baseline = build_baseline(prompts)
+    profile = active_profile()
     metadata = {
-        "model": MODEL_NAME,
-        "sae_release": SAE_RELEASE,
-        "sae_id": SAE_ID,
-        "layer": LAYER,
+        "profile": profile.name,
+        "model": profile.model_name,
+        "sae_release": profile.sae_release,
+        "sae_id": profile.sae_id,
+        "layer": profile.layer,
         "k": K,
         "pool": POOL,
         "prompt_count": baseline["prompt_count"],
