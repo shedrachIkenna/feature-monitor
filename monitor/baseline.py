@@ -83,12 +83,10 @@ def baseline_path() -> Path:
     return BASELINES_DIR / f"{active_profile().file_stem}.json"
 
 
-def main() -> None:
-    """Build, save and reload the baseline, then print its 20 most common features."""
-    prompts = sample_prompts(read_pool(POOL_DIR / f"{POOL}.jsonl"), N_PROMPTS)
-    baseline = build_baseline(prompts)
+def baseline_metadata(prompt_count: int) -> dict:
+    """Describe a baseline built now for the active profile from POOL with SEED."""
     profile = active_profile()
-    metadata = {
+    return {
         "profile": profile.name,
         "model": profile.model_name,
         "sae_release": profile.sae_release,
@@ -96,10 +94,17 @@ def main() -> None:
         "layer": profile.layer,
         "k": K,
         "pool": POOL,
-        "prompt_count": baseline["prompt_count"],
+        "prompt_count": prompt_count,
         "seed": SEED,
         "created": datetime.now(UTC).isoformat(timespec="seconds"),
     }
+
+
+def main() -> None:
+    """Build, save and reload the baseline, then print its 20 most common features."""
+    prompts = sample_prompts(read_pool(POOL_DIR / f"{POOL}.jsonl"), N_PROMPTS)
+    baseline = build_baseline(prompts)
+    metadata = baseline_metadata(baseline["prompt_count"])
     path = baseline_path()
     save_baseline(baseline, metadata, path)
     _, reloaded = load_baseline(path)
