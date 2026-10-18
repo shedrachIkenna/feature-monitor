@@ -69,11 +69,19 @@ The charts show time up to now, so for a run from earlier in the day set **Time 
 
 ### What it looks like
 
-These screenshots come from one `medical_ramp` run (seed 42; 2,000 requests in about 14 minutes, medical questions ramped into normal traffic), not from live traffic, viewed on the 1-hour range.
+The live overview on the Space, 18 October (desktop, then phone). It opens with a "Try it" box that shows a prompt's five strongest features with how often each appears in normal traffic (`/dashboard/normal-rates`, per 1,000 baseline prompts), then a live feed of monitored requests as they arrive with their three strongest features. The feed only shows recorded traffic, so visitors' own prompts never appear in it; the labels are Neuronpedia's and some are loose (a typo-ridden shipping question picks up "Apple products").
 
-The overview now starts with three more sections, not shown in these screenshots yet (taken before 2026-10-18): a "Try it" box that shows a prompt's five strongest features with how often each appears in normal traffic (`/dashboard/normal-rates`, per 1,000 baseline prompts); a live feed of monitored requests as they arrive, with their three strongest features; and a recorded replay of `medical_ramp` (seed 0) with and without the shift, from `frontend/recorded_example.json`, which `uv run python -m eval.recorded_example` rebuilds from the saved results. The live feed only shows recorded traffic, so visitors' own prompts never appear in it.
+![Top of the live overview: try box and live feed](docs/images/overview-top.png)
 
-Below them: each detector's drift score divided by its own threshold, so the dashed line at 1 is the alarm level for both. In this run the SAE detector first alerted at request 780 and the embedding detector at request 1061. How far a line rises above 1 is not comparable between detectors.
+<img src="docs/images/overview-phone.jpg" alt="Top of the live overview on a phone" width="295">
+
+Next comes a recorded replay of `medical_ramp` (seed 0): the SAE score with the shift and for the same normal prompts without it, from `frontend/recorded_example.json`, which `uv run python -m eval.recorded_example` rebuilds from the saved results. (In these screenshots the dashed line still crosses the "no shift" label; that was fixed the same day.)
+
+![Recorded replay on the live overview](docs/images/overview-replay.png)
+
+The screenshots below come from one `medical_ramp` run (seed 42; 2,000 requests in about 14 minutes, medical questions ramped into normal traffic), not from live traffic, viewed on the 1-hour range before the sections above were added.
+
+The drift chart: each detector's drift score divided by its own threshold, so the dashed line at 1 is the alarm level for both. In this run the SAE detector first alerted at request 780 and the embedding detector at request 1061. How far a line rises above 1 is not comparable between detectors.
 
 ![Overview with drift alerts](docs/images/overview-alert.png)
 
