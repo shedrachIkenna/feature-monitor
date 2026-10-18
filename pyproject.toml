@@ -44,4 +44,4 @@ line-length = 100
 extend-select = ["I"]
 
 [tool.pytest.ini_options]
-markers = ["requires_model: loads GPT-2 and the SAE, downloading them on first run"]
+markers = ["requires_model: loads the active profile's model and SAE, downloading them on first run"]

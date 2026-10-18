@@ -1,0 +1,32 @@
+# Model profiles. FEATURE_MONITOR_PROFILE picks one (default gpt2_small); see monitor/model.py.
+# Release, SAE id and Neuronpedia id were checked against the installed sae-lens registry.
+#
+# label: name shown in the dashboard.
+# model_name: Hugging Face model id, loaded with TransformerLens's TransformerBridge.
+# dtype: torch dtype for the model weights (the SAE stays float32 and casts its input).
+# process_weights: fold layer norms and centre weights like HookedTransformer. Only for SAEs
+#   trained on processed activations; Gemma Scope was trained on the raw residual stream.
+# layer: the layer the SAE reads, used in baseline, threshold and cache file names.
+# neuronpedia_id: "<model>/<source>" as in Neuronpedia URLs, for feature labels and links.
+
+gpt2_small:
+  label: GPT-2 Small
+  model_name: gpt2
+  dtype: float32
+  process_weights: true
+  sae_release: gpt2-small-res-jb
+  sae_id: blocks.8.hook_resid_pre
+  layer: 8
+  neuronpedia_id: gpt2-small/8-res-jb
+
+# Layer 16's output comes after 17 of 26 blocks (65%), the closest match to GPT-2's input to
+# block 8 (8 of 12, 67%), so the two profiles read at about the same relative depth.
+gemma2_2b:
+  label: Gemma 2 2B
+  model_name: google/gemma-2-2b
+  dtype: bfloat16
+  process_weights: false
+  sae_release: gemma-scope-2b-pt-res-canonical
+  sae_id: layer_16/width_16k/canonical
+  layer: 16
+  neuronpedia_id: gemma-2-2b/16-gemmascope-res-16k

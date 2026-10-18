@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # Feature Monitor on CPU, in three stages; only the last one ships.
 #   builder: installs the locked Python packages into /app/.venv with uv.
-#   assets:  downloads GPT-2, the SAE, the embedder, the baseline features' labels and the
+#   assets:  downloads the default profile's model and SAE (GPT-2 Small; see
+#            monitor/profiles.yaml), the embedder, the baseline features' labels and the
 #            prompt datasets, from which it builds the traffic pools for the demo traffic.
 #   runtime: a fresh slim image with the venv, the downloads and the code, run as uid 1000.
 
@@ -56,7 +57,7 @@ COPY --chown=user:user traffic/__init__.py traffic/generate.py traffic/
 COPY --chown=user:user traffic/scenarios/ traffic/scenarios/
 COPY --from=assets --chown=user:user /app/traffic/data traffic/data
 # Writable: the app adds labels of features outside the baseline on first use.
-COPY --from=assets --chown=user:user /app/monitor/labels_cache.json monitor/labels_cache.json
+COPY --from=assets --chown=user:user /app/monitor/labels_cache_gpt2_small.json monitor/
 USER user
 EXPOSE 7860
 # No access log: the app logs one JSON line per request itself, without client addresses.

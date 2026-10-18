@@ -28,6 +28,7 @@ from backend.app import (
 from monitor.config import load_config
 from monitor.extract import FeatureHit
 from monitor.job import DriftJob
+from monitor.model import PROFILE_ENV, active_profile
 
 
 class FakeEngine:
@@ -59,13 +60,23 @@ def client(tmp_path, monkeypatch):
 
 
 def test_health_reports_model_and_device(client) -> None:
+    profile = active_profile()
     assert client.get("/health").json() == {
         "status": "ok",
         "model": "fake-gpt2",
+        "model_label": profile.label,
+        "neuronpedia_id": profile.neuronpedia_id,
         "device": "cpu",
         "extract": True,
         "storage_resets": False,
     }
+
+
+def test_health_follows_the_profile_variable(client, monkeypatch) -> None:
+    monkeypatch.setenv(PROFILE_ENV, "gemma2_2b")
+    health = client.get("/health").json()
+    assert health["model_label"] == "Gemma 2 2B"
+    assert health["neuronpedia_id"] == "gemma-2-2b/16-gemmascope-res-16k"
 
 
 def test_health_says_storage_resets_on_a_space(tmp_path, monkeypatch) -> None:

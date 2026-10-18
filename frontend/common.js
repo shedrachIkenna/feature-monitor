@@ -294,14 +294,35 @@ function demoNotice(demo) {
     : "";
 }
 
-// /health's storage answer cannot change while the server runs, so it is fetched once.
-let storageResets = null;
+// Nothing in /health changes while the server runs, so it is fetched once per page.
+let healthRequest = null;
+
+/** /health's answer, fetched on first use; a failed fetch is retried next time. */
+function serverHealth() {
+  healthRequest ??= api("/health").catch((error) => {
+    healthRequest = null;
+    throw error;
+  });
+  return healthRequest;
+}
+
+/** Put the served model's name into every [data-model-label] element. */
+async function showModelLabel() {
+  try {
+    const { model_label: label } = await serverHealth();
+    document.querySelectorAll("[data-model-label]").forEach((node) => {
+      node.textContent = label;
+    });
+  } catch (_) {
+    // Server unreachable; the page keeps its generic wording.
+  }
+}
 
 /** Update the banner, then check again: every 2 s while a count is moving, else every 30 s. */
 async function showServerNotices() {
   let demo = null;
   try {
-    if (storageResets === null) storageResets = (await api("/health")).storage_resets;
+    const storageResets = (await serverHealth()).storage_resets;
     demo = await api("/demo/status");
     noticeBox();
     setNotice(
@@ -318,4 +339,5 @@ async function showServerNotices() {
   setTimeout(showServerNotices, noticeDelay(demo));
 }
 
+showModelLabel();
 showServerNotices();

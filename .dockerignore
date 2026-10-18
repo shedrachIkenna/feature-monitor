@@ -15,6 +15,6 @@ traffic/runs/
 *.db-shm
 *.db-wal
 # Rebuilt from Neuronpedia at build time, so a build never depends on a local cache.
-monitor/labels_cache.json
+monitor/labels_cache_*.json
 monitor/baselines/*_features.json
 monitor/baselines/*_embeddings.npy

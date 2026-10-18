@@ -1,7 +1,7 @@
-"""HTTP API: answer prompts with GPT-2 Small and record each request's top SAE features.
+"""HTTP API: answer prompts with the active profile's model and record each request's top SAE features.
 
 The model work sits behind an `Engine`, so tests can build the app with a fake one via
-`create_app` and never download GPT-2 or the SAE. A background scheduler runs the drift job
+`create_app` and never download the model or the SAE. A background scheduler runs the drift job
 (monitor/job.py) every check_interval_seconds and stores each check's scores and any alerts.
 The /dashboard endpoints (backend/dashboard.py) read those back for the frontend, which is served
 as static files at / after every API route, so the API paths always win. The playground page sends
@@ -42,7 +42,7 @@ from backend import dashboard, demo, storage
 from monitor.config import load_config
 from monitor.extract import FeatureHit, extract_features
 from monitor.job import Detector, DriftJob, load_drift_job
-from monitor.model import MODEL_NAME, load_model_and_sae
+from monitor.model import active_profile, load_model_and_sae
 
 MAX_NEW_TOKENS = 40
 SEED = 0
@@ -161,12 +161,12 @@ class Engine(Protocol):
     def run(self, prompt: str) -> EngineResult: ...
 
 
-class GPT2Engine:
-    """GPT-2 Small with its block-8 SAE, serving one request at a time."""
+class ModelEngine:
+    """The active profile's model and SAE, serving one request at a time."""
 
     def __init__(self) -> None:
         self.model, _ = load_model_and_sae()
-        self.model_name = MODEL_NAME
+        self.model_name = active_profile().model_name
         self.device = str(self.model.cfg.device)
         self.extract = extraction_enabled()
         # The seed is process-wide, so concurrent requests would disturb each other's sampling.
@@ -315,9 +315,12 @@ def create_app(
     @app.get("/health")
     def health(request: Request) -> dict:
         engine: Engine = request.app.state.engine
+        profile = active_profile()
         return {
             "status": "ok",
             "model": engine.model_name,
+            "model_label": profile.label,
+            "neuronpedia_id": profile.neuronpedia_id,
             "device": engine.device,
             "extract": engine.extract,
             "storage_resets": storage_resets,
@@ -490,4 +493,4 @@ def sae_detector(request: Request) -> tuple[DriftJob, Detector]:
     return job, detector
 
 
-app = create_app(GPT2Engine, load_drift_job)
+app = create_app(ModelEngine, load_drift_job)

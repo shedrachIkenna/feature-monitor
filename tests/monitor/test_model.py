@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from monitor.model import load_model_and_sae
+from monitor.model import active_profile, load_model_and_sae
 
 
 @pytest.mark.requires_model
@@ -16,6 +16,8 @@ def test_sae_input_size_matches_model_width() -> None:
 @pytest.mark.filterwarnings("ignore:HookedTransformer.*deprecated:DeprecationWarning")
 def test_bridge_matches_deprecated_loader() -> None:
     """Delete this test once TransformerLens 4.0 removes HookedTransformer."""
+    if active_profile().name != "gpt2_small":
+        pytest.skip("compares against HookedTransformer's GPT-2 Small only")
     from transformer_lens import HookedTransformer
 
     model, sae = load_model_and_sae()
