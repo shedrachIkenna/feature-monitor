@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import torch
 from sae_lens.loading.pretrained_saes_directory import get_pretrained_saes_directory
@@ -82,8 +84,14 @@ def test_baselines_thresholds_and_labels_are_per_profile(monkeypatch) -> None:
         assert a != b
 
 
-def test_label_cache_is_named_after_the_profile_in_use() -> None:
-    assert labels.CACHE_PATH.name == f"labels_cache_{active_profile().name}.json"
+def test_label_cache_follows_a_profile_switch_within_one_process(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(labels, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(labels, "fetch_label", lambda feature_id: f"label {feature_id}")
+    for name in ("gpt2_small", "gemma2_2b"):
+        monkeypatch.setenv(PROFILE_ENV, name)
+        labels.get_label(7 if name == "gpt2_small" else 9)
+    assert json.loads((tmp_path / "labels_cache_gpt2_small.json").read_text()) == {"7": "label 7"}
+    assert json.loads((tmp_path / "labels_cache_gemma2_2b.json").read_text()) == {"9": "label 9"}
 
 
 def test_embedding_files_are_shared_by_all_profiles(monkeypatch) -> None:

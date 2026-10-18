@@ -165,6 +165,8 @@ uv run python -m eval.run_experiment extract calibrate replay   # add verify to 
 
 `extract` is the only slow step and resumes if stopped; the whole GPT-2 Small run (27,860 prompts) took 12 minutes on this Mac. Results go to `eval/results/experiment_runs.csv`, `experiment_alerts.csv` and `experiment_sweep.csv` (a threshold sweep, so detectors can be compared at equal false-alarm rates); `uv run python -m eval.plot_experiment` draws the sweep for both profiles as `eval/results/experiment_tradeoff.png`. Set `FEATURE_MONITOR_PROFILE` to run another model profile.
 
+`make results` reruns `eval/02_results.ipynb` offline from the cache: the results table per profile, scenario and detector, two figures (`eval/results/fig1_scores.png`, one run's drift scores; `fig2_delays.png`, delay per seed), extraction overhead, failure cases and conclusions. Overhead is the one measurement it reads rather than computes: `uv run python -m eval.latency` writes `eval/results/latency_<profile>.json`.
+
 ## Folder Layout
 
 - `backend/` - API and storage

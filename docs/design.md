@@ -124,6 +124,8 @@ report it as a test of what only internal monitoring can see, not as a win over 
   also sweeps each detector's threshold over percentiles of its calibration scores
   (`experiment_sweep.csv`, plotted by `eval/plot_experiment.py` as
   `experiment_tradeoff.png`), so the detectors are compared at equal false-alarm rates.
+  `eval/02_results.ipynb` (`make results`) turns these into the results table, figures,
+  overhead and failure cases, from the cache alone (`eval/analysis.py` holds its computations).
 - The project succeeds if it gives a fair, reproducible answer for each scenario, whichever
   method it favours. Null and negative results are reported.
 

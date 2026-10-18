@@ -34,7 +34,7 @@ def sleeps(monkeypatch) -> list[float]:
 
 
 def test_get_label_fetches_and_caches_label(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    monkeypatch.setattr(labels, "cache_path", lambda: tmp_path / "labels.json")
 
     calls: list[str] = []
 
@@ -59,7 +59,7 @@ def test_get_label_fetches_and_caches_label(monkeypatch, tmp_path) -> None:
 
 
 def test_get_label_ignores_text_outside_explanations(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    monkeypatch.setattr(labels, "cache_path", lambda: tmp_path / "labels.json")
     monkeypatch.setattr(
         labels,
         "_fetch_feature_payload",
@@ -76,7 +76,7 @@ def test_get_label_ignores_text_outside_explanations(monkeypatch, tmp_path) -> N
 
 def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path, sleeps) -> None:
     cache_path = tmp_path / "labels.json"
-    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+    monkeypatch.setattr(labels, "cache_path", lambda: cache_path)
 
     calls: list[str] = []
 
@@ -100,7 +100,7 @@ def test_get_label_retries_once_then_returns_unlabelled(monkeypatch, tmp_path, s
 def _count_calls_for_http_error(
     monkeypatch, tmp_path, code: int, retry_after: str | None = None
 ) -> int:
-    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    monkeypatch.setattr(labels, "cache_path", lambda: tmp_path / "labels.json")
     calls: list[str] = []
     headers = Message()
     if retry_after is not None:
@@ -177,7 +177,7 @@ def test_explanation_prefers_highest_mean_score(explanations, expected: str) -> 
 
 
 def test_fetch_label_returns_none_on_failure_and_skips_cache(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr(labels, "CACHE_PATH", tmp_path / "labels.json")
+    monkeypatch.setattr(labels, "cache_path", lambda: tmp_path / "labels.json")
     monkeypatch.setattr(labels, "_fetch_with_one_retry", lambda key: None)
 
     assert labels.fetch_label(7) is None
@@ -189,7 +189,7 @@ def test_prefetch_labels_fetches_only_uncached_and_keeps_failures_out(
 ) -> None:
     cache_path = tmp_path / "labels.json"
     cache_path.write_text(json.dumps({"1": "cached one", "99": "unrelated"}))
-    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+    monkeypatch.setattr(labels, "cache_path", lambda: cache_path)
     calls: list[int] = []
 
     def fake_fetch(feature_id: int) -> str | None:
@@ -210,7 +210,7 @@ def test_prefetch_labels_fetches_only_uncached_and_keeps_failures_out(
 def test_concurrent_get_label_keeps_every_label(monkeypatch, tmp_path) -> None:
     cache_path = tmp_path / "labels.json"
     cache_path.write_text(json.dumps({str(i): f"old {i}" for i in range(500)}))
-    monkeypatch.setattr(labels, "CACHE_PATH", cache_path)
+    monkeypatch.setattr(labels, "cache_path", lambda: cache_path)
 
     def slow_fetch(feature_id: int | str) -> str:
         threading.Event().wait(0.002)  # a real pause; time.sleep is replaced by a fixture
