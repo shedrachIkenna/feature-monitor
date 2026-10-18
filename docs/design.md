@@ -129,8 +129,8 @@ report it as a test of what only internal monitoring can see, not as a win over 
 - Embedding model responses.
 - Load testing at production scale.
 - Not yet: sudden switches (all scenarios are ramps), and results for models other than
-  GPT-2 Small. The Gemma 2 2B profile can be loaded (Milestone 7.1) but has no baseline,
-  threshold or evaluation yet.
+  GPT-2 Small beyond the offline replay: Gemma 2 2B has a baseline, threshold and offline
+  results (Milestone 7.2) but has not served live traffic.
 
 ## Known gaps
 Things we know are missing, with when each must be fixed. Remove an item once it is fixed.
