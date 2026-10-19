@@ -21,25 +21,7 @@ Drift alerts for a deployed language model from its sparse autoencoder (SAE) fea
 
 Every request's activations at one layer are encoded by an SAE and its 20 strongest features are stored. Every 60 seconds a job compares the latest 500 requests with a fixed baseline, once with SAE features and once with sentence embeddings of the prompts, and alerts when either score crosses its own calibrated threshold.
 
-```mermaid
-flowchart LR
-    U[Request] --> API[FastAPI /chat]
-    API --> M[Language model]
-    M -->|reply| U
-    M -->|activations at one layer| SAE[SAE encoder]
-    SAE -->|top 20 features| DB[(SQLite)]
-    API -->|prompt text| DB
-    subgraph Drift job, every 60 s
-        DB --> W[Latest 500 requests]
-        W --> S1[SAE score: JSD vs baseline]
-        W --> S2[Embedding score: MiniLM mean distance]
-        S1 --> T{Above threshold?}
-        S2 --> T
-    end
-    T -->|yes| A[Alert + changed features]
-    A --> D[Dashboard]
-    DB --> D
-```
+![Architecture: each request's top 20 SAE features are stored; every 60 s a drift job scores the latest 500 requests with an SAE detector and an embedding detector, each against its own threshold, and raises alerts shown on the dashboard](docs/images/architecture.svg)
 
 ## Results
 
