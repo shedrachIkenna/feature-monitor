@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+type: software
+title: "Feature Monitor: drift alerts from sparse autoencoder features"
+abstract: >-
+  A production-style monitor that encodes a language model's activations with a sparse
+  autoencoder, stores each request's top 20 features, and raises drift alerts, compared against
+  the same drift test on prompt sentence embeddings with GPT-2 Small and Gemma 2 2B.
+authors:
+  - given-names: Shedrach
+    family-names: Nwali
+repository-code: "https://github.com/shedrachIkenna/feature-monitor"
+url: "https://huggingface.co/spaces/Shedrach/feature-monitor"
+license: MIT
+version: 0.1.0
+date-released: "2026-10-19"
+keywords:
+  - sparse autoencoders
+  - drift detection
+  - interpretability
+  - monitoring

@@ -102,7 +102,6 @@ RESULTS_DIR = ROOT / "eval" / "results"
 RUNS_PATH = RESULTS_DIR / "experiment_runs.csv"
 ALERTS_PATH = RESULTS_DIR / "experiment_alerts.csv"
 SWEEP_PATH = RESULTS_DIR / "experiment_sweep.csv"
-NORMAL_JSD_PATH = RESULTS_DIR / "normal_jsd.json"
 MULTISEED_PATH = RESULTS_DIR / "multiseed.json"
 EMBED_BASELINES_PATH = RESULTS_DIR / "embed_baselines.json"
 CHUNK = 500

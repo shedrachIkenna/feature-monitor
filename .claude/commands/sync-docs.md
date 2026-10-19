@@ -12,7 +12,9 @@ Check that the project docs still describe the code. Run this before committing 
      of "Open questions".
    - `docs/schema.md`: every table and column in `backend/storage.py`, and the conventions.
    - `docs/datasets.md`: pools, sizes and processing in `traffic/prepare_data.py`.
-   - `README.md`: quick start, endpoints, how to run the dashboard, screenshots, status.
+   - `README.md`: summary, results table and finding (must match `docs/writeup.md`), quick start, links.
+   - `docs/usage.md`: endpoints, settings, how to run the dashboard, screenshots, offline experiments.
+   - `docs/deployment.md`: Docker, the Space, deploys and rollbacks.
    - `docs/study-report.md`: the milestone table and the "out of date" notice at the top.
      If the task added something the report does not cover, extend the notice; a full
      refresh is its own task.
