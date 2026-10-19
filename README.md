@@ -167,6 +167,8 @@ uv run python -m eval.run_experiment extract calibrate replay   # add verify to 
 
 `make results` reruns `eval/02_results.ipynb` offline from the cache: the results table per profile, scenario and detector, two figures (`eval/results/fig1_scores.png`, one run's drift scores; `fig2_delays.png`, delay per seed), extraction overhead, failure cases and conclusions. Overhead is the one measurement it reads rather than computes: `uv run python -m eval.latency` writes `eval/results/latency_<profile>.json`.
 
+The technical writeup, [docs/writeup.md](docs/writeup.md), summarises the method, system and these results for engineers, including what did not work.
+
 ## Folder Layout
 
 - `backend/` - API and storage
