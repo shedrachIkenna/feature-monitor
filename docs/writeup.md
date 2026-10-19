@@ -37,25 +37,7 @@ The SAE detector also runs a per-feature test (a two-proportion z-test, with a B
 
 The system has two parts: a live service that monitors real requests, and an offline harness that replays the experiments. The results in this writeup come from the offline harness. Both use the same feature extraction and scoring code.
 
-```mermaid
-flowchart LR
-    U[Request] --> API[FastAPI /chat]
-    API --> M[Language model]
-    M -->|reply| U
-    M -->|activations at one layer| SAE[SAE encoder]
-    SAE -->|top 20 features| DB[(SQLite)]
-    API -->|prompt text| DB
-    subgraph Drift job, every 60 s
-        DB --> W[Latest 500 requests]
-        W --> S1[SAE score: JSD vs baseline]
-        W --> S2[Embedding score: MiniLM mean distance]
-        S1 --> T{Above threshold?}
-        S2 --> T
-    end
-    T -->|yes| A[Alert + changed features]
-    A --> D[Dashboard]
-    DB --> D
-```
+![Architecture: each request's top 20 SAE features are stored; every 60 s a drift job scores the latest 500 requests with an SAE detector and an embedding detector, each against its own threshold, and raises alerts shown on the dashboard](images/architecture.svg)
 
 **Models.** The system runs on one model at a time, chosen by a profile (`monitor/profiles.yaml`):
 

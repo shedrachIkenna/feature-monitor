@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500" viewBox="0 0 1000 500" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Feature Monitor architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.2; }
+    .sae { fill: #ddf4ff; stroke: #0969da; stroke-width: 1.4; }
+    .emb { fill: #fbefff; stroke: #8250df; stroke-width: 1.4; }
+    .alert { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.4; }
+    .note { fill: #ffffff; stroke: #8c959f; stroke-width: 1; stroke-dasharray: 5 4; }
+    .line { fill: none; stroke: #57606a; stroke-width: 1.4; }
+    .head { font-size: 15px; font-weight: 700; fill: #1f2328; }
+    .name { font-size: 14px; font-weight: 600; fill: #1f2328; text-anchor: middle; }
+    .small { font-size: 11.5px; fill: #424a53; text-anchor: middle; }
+    .label { font-size: 11.5px; fill: #57606a; font-style: italic; }
+  </style>
+
+  <rect x="0.5" y="0.5" width="999" height="499" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+
+  <!-- Column headings -->
+  <text class="head" x="30" y="40">1 · Every request</text>
+  <text class="head" x="380" y="40">2 · Drift job, every 60 s</text>
+  <text class="head" x="800" y="40">3 · Output</text>
+  <line x1="350" y1="25" x2="350" y2="440" stroke="#d0d7de" stroke-dasharray="3 4"/>
+  <line x1="780" y1="25" x2="780" y2="440" stroke="#d0d7de" stroke-dasharray="3 4"/>
+
+  <!-- Column 1: serving path -->
+  <rect class="box" x="30" y="80" width="90" height="50" rx="6"/>
+  <text class="name" x="75" y="110">Prompt</text>
+
+  <rect class="box" x="160" y="80" width="170" height="50" rx="6"/>
+  <text class="name" x="245" y="101">Language model</text>
+  <text class="small" x="245" y="119">GPT-2 Small or Gemma 2 2B</text>
+
+  <path class="line" d="M120,96 L158,96" marker-end="url(#arrow)"/>
+  <path class="line" d="M160,116 L122,116" marker-end="url(#arrow)"/>
+  <text class="label" x="140" y="146" text-anchor="middle">reply</text>
+
+  <rect class="sae" x="160" y="190" width="170" height="56" rx="6"/>
+  <text class="name" x="245" y="213">SAE encoder</text>
+  <text class="small" x="245" y="232">keep top 20 features</text>
+  <path class="line" d="M245,130 L245,188" marker-end="url(#arrow)"/>
+  <text class="label" x="238" y="176" text-anchor="end">activations at one layer</text>
+
+  <rect class="box" x="160" y="300" width="170" height="56" rx="6"/>
+  <text class="name" x="245" y="323">SQLite</text>
+  <text class="small" x="245" y="342">prompt + top 20 features</text>
+  <path class="line" d="M245,246 L245,298" marker-end="url(#arrow)"/>
+
+  <path class="line" d="M75,130 L75,328 L158,328" marker-end="url(#arrow)"/>
+  <text class="label" x="83" y="290">prompt text</text>
+
+  <!-- Column 2: drift job -->
+  <path class="line" d="M330,328 L350,328 L350,105 L468,105" marker-end="url(#arrow)"/>
+
+  <rect class="box" x="470" y="80" width="200" height="50" rx="6"/>
+  <text class="name" x="570" y="110">Latest 500 requests</text>
+
+  <path class="line" d="M530,130 L467,188" marker-end="url(#arrow)"/>
+  <text class="label" x="420" y="162">top features</text>
+  <path class="line" d="M610,130 L673,188" marker-end="url(#arrow)"/>
+  <text class="label" x="648" y="162">prompt text</text>
+
+  <rect class="sae" x="380" y="190" width="170" height="70" rx="6"/>
+  <text class="name" x="465" y="212">SAE detector</text>
+  <text class="small" x="465" y="231">share of each feature</text>
+  <text class="small" x="465" y="248">JSD vs baseline</text>
+
+  <rect class="emb" x="590" y="190" width="170" height="70" rx="6"/>
+  <text class="name" x="675" y="212">Embedding detector</text>
+  <text class="small" x="675" y="231">MiniLM mean embedding</text>
+  <text class="small" x="675" y="248">distance vs baseline</text>
+
+  <path class="line" d="M465,260 L465,298" marker-end="url(#arrow)"/>
+  <path class="line" d="M675,260 L675,298" marker-end="url(#arrow)"/>
+
+  <rect class="box" x="380" y="300" width="170" height="50" rx="6"/>
+  <text class="name" x="465" y="321">Above its threshold?</text>
+  <text class="small" x="465" y="339">SAE threshold</text>
+
+  <rect class="box" x="590" y="300" width="170" height="50" rx="6"/>
+  <text class="name" x="675" y="321">Above its threshold?</text>
+  <text class="small" x="675" y="339">embedding threshold</text>
+
+  <rect class="note" x="380" y="395" width="380" height="45" rx="6"/>
+  <text class="small" x="570" y="414">Baseline: 3,000 normal prompts. Threshold: 99th percentile</text>
+  <text class="small" x="570" y="431">of 1,000 normal 500-request windows, per detector and model.</text>
+
+  <!-- Column 3: output -->
+  <rect class="box" x="800" y="80" width="170" height="50" rx="6"/>
+  <text class="name" x="885" y="101">Dashboard</text>
+  <text class="small" x="885" y="119">scores, alerts, features</text>
+
+  <rect class="alert" x="800" y="290" width="170" height="70" rx="6"/>
+  <text class="name" x="885" y="313">Alert</text>
+  <text class="small" x="885" y="332">+ features that changed</text>
+  <text class="small" x="885" y="349">(z-test, BH correction)</text>
+
+  <path class="line" d="M760,325 L798,325" marker-end="url(#arrow)"/>
+  <text class="label" x="768" y="318">yes</text>
+  <path class="line" d="M465,350 L465,375 L885,375 L885,362" marker-end="url(#arrow)"/>
+  <text class="label" x="472" y="369">yes</text>
+  <path class="line" d="M885,290 L885,132" marker-end="url(#arrow)"/>
+
+  <text x="500" y="475" font-size="12px" fill="#57606a" text-anchor="middle">Experiments replay cached features and embeddings through the same scoring code offline (eval/run_experiment.py).</text>
+</svg>
