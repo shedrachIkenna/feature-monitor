@@ -61,7 +61,7 @@ These are 10 seeds of templated customer-support traffic with gradual shifts onl
 
 ## Quick start
 
-Needs [uv](https://docs.astral.sh/uv/) and about 1 GB of disk for GPT-2 Small, its SAE and the embedding model.
+Needs [uv](https://docs.astral.sh/uv/). On a fresh clone on macOS, the Python environment took 1.4 GB and the downloaded models (GPT-2 Small, its SAE and the embedding model) 757 MB.
 
 ```sh
 git clone https://github.com/shedrachIkenna/feature-monitor.git
