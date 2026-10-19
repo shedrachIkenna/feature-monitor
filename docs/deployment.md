@@ -21,7 +21,7 @@ FEATURE_MONITOR_RECORD_TOKEN=some-secret docker compose up --build   # open http
 ```
 
 Without the token the container still serves the dashboard and the Playground, but refuses
-recorded prompts (`403`), as on the Space. See the README for details.
+recorded prompts (`403`), as on the Space. See [Docker details](#docker-details) below.
 
 ## How a deploy works
 
@@ -127,3 +127,48 @@ cd - && git worktree remove ../fm-rollback
 These are the same commands hub-sync runs.
 
 A rollback does not bring back data: the restart wipes the database either way.
+
+## Docker details
+
+The image runs on CPU only and needs no network to start: GPT-2, the SAE, the MiniLM embedder
+and the Neuronpedia labels of the 2,488 baseline features are downloaded while the image is
+built. Labels of other features are fetched on first use when the network is reachable, and
+show "unlabelled" otherwise.
+
+```sh
+docker compose up --build
+```
+
+The first build takes several minutes. Then open <http://localhost:7860/>;
+`curl localhost:7860/health` reports `"device": "cpu"`. The database is
+`/data/feature_monitor.db` on the `feature-monitor-data` volume, so it survives
+`docker compose down` and rebuilds (`docker compose down -v` deletes it). The app runs as a
+non-root user with uid 1000, as Hugging Face Spaces requires.
+
+The image sets `FEATURE_MONITOR_REQUIRE_RECORD_TOKEN=1`, so it refuses recorded prompts until
+it is given a token. Locally, `docker-compose.yml` passes `FEATURE_MONITOR_RECORD_TOKEN`
+through from your shell (`FEATURE_MONITOR_RECORD_TOKEN=... docker compose up`); on a Hugging
+Face Space, add it as a secret in the Space's settings.
+
+On Linux the lock file installs the CPU-only build of torch from the PyTorch index
+(`[tool.uv.sources]` in `pyproject.toml`); macOS keeps PyPI's torch. PyPI's Linux torch
+brings several GB of NVIDIA CUDA libraries that a CPU container cannot use. On this Mac the
+image went from 11.8 GB to 4.06 GB on disk (4.22 GB to 1.22 GB compressed).
+
+**Apple Silicon and amd64.** A Mac with an M-series chip is `arm64` (also called aarch64), so
+Docker builds `linux/arm64` images by default. Most servers, including Hugging Face Spaces,
+are `linux/amd64` (x86_64). The two run different machine code, so an image built for one
+does not run natively on the other. To build for the host:
+
+```sh
+docker buildx build --platform linux/amd64 -t feature-monitor:amd64 --load .
+docker buildx build --platform linux/amd64,linux/arm64 -t <registry>/feature-monitor --push .
+```
+
+The first command builds an amd64 image on the Mac by emulating an x86 CPU, which is slower
+than a native build: here about 32 minutes against about 6 for arm64 (not a clean comparison:
+the arm64 build reused cached downloads), and the emulated container took 31 seconds to start
+against 6 to 9 natively. The second builds both in one multi-platform image
+and pushes it to a registry; whoever pulls it gets the variant that matches their machine.
+A Hugging Face Docker Space builds the `Dockerfile` itself on amd64, so pushing an image is
+not needed there.

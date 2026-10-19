@@ -373,26 +373,6 @@ def window_rates(hits: dict, window: Sequence[dict], features: Sequence[int]) ->
     return {f: counts.get(f, 0) / len(window) * 1000 for f in features}
 
 
-def separation(profile: str, scenario: str, n: int = 500) -> dict:
-    """How far a window of n shift prompts, and the normal pool, sit from the profile's threshold.
-
-    Both are scored like a drift window and divided by the threshold: shift_ratio says how strong
-    a fully shifted window is, normal_ratio how close normal traffic already is.
-    """
-    window_size = load_config().window_size
-    with using_profile(profile):
-        hits = load_hits(features_path(profile))
-        thresholds, counts, _ = detector_thresholds(window_size)
-    rng = random.Random(SAMPLE_SEED)
-    pool = shift_prompts(scenario, hits)
-    shift = rng.sample(pool, min(n, len(pool)))
-    normal = rng.sample(load_pool("normal_test"), n)
-    return {
-        "shift_ratio": score_window(counts, (ids(hits[p]) for p in shift)) / thresholds[SAE],
-        "normal_ratio": score_window(counts, (ids(hits[p]) for p in normal)) / thresholds[SAE],
-    }
-
-
 def shift_prompts(scenario: str, hits: dict) -> list[str]:
     """A scenario's shift prompts that are in the cache: those the replayed seeds send.
 

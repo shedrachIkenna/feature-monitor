@@ -5,8 +5,7 @@ untouched. Generation time and extraction time come from the stored rows; total 
 the client's wall-clock time for the whole HTTP request.
 
 Results go to eval/results/latency_<profile>.json (FEATURE_MONITOR_PROFILE picks the model; the
-server runs the full model, as the live app does). eval/results/latency_m2.json is the earlier
-GPT-2 run, before extraction stopped after the SAE's layer.
+server runs the full model, as the live app does).
 
 Run with: uv run python -m eval.latency
 """
